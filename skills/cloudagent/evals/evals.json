@@ -1,0 +1,23 @@
+{
+  "skill_name": "cloudagent",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I've got a Next.js app in /home/workspace/my-app. Start the dev server so I can see it in my browser.",
+      "expected_output": "Should start the dev server bound to 0.0.0.0, create an HTTP forward (not port forward), and use cloudagent open-url to send the HTTPS URL to the user.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We just found an auth bypass bug. Create a ticket for it on our board — mark it as high priority.",
+      "expected_output": "Should list boards to find the board ID, then create a ticket with the title and priority set. Should use cloudagent tickets create with --board, --title, and --priority flags.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I generated a test report at /home/workspace/coverage/index.html — can you show it to me?",
+      "expected_output": "Should use cloudagent open-file to present the file to the user, not try to open it in a browser or cat it to stdout.",
+      "files": []
+    }
+  ]
+}
