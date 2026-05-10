@@ -134,14 +134,17 @@ mkdir -p "$SKILLS_DIR"
 
 for skill_dir in "$DOTFILES_DIR"/skills/*/; do
   skill_name="$(basename "$skill_dir")"
-  if [ -d "$SKILLS_DIR/$skill_name" ] && [ -f "$SKILLS_DIR/$skill_name/SKILL.md" ]; then
-    cp "$skill_dir/SKILL.md" "$SKILLS_DIR/$skill_name/SKILL.md"
-    ok "Updated skill: $skill_name"
-  else
-    mkdir -p "$SKILLS_DIR/$skill_name"
-    cp "$skill_dir/SKILL.md" "$SKILLS_DIR/$skill_name/SKILL.md"
-    ok "Installed skill: $skill_name"
-  fi
+  action="Installed"
+  [ -d "$SKILLS_DIR/$skill_name" ] && [ -f "$SKILLS_DIR/$skill_name/SKILL.md" ] && action="Updated"
+  mkdir -p "$SKILLS_DIR/$skill_name"
+  cp "$skill_dir/SKILL.md" "$SKILLS_DIR/$skill_name/SKILL.md"
+  # Copy bundled resources (scripts/, references/, assets/) if present
+  for res_dir in scripts references assets; do
+    if [ -d "$skill_dir/$res_dir" ]; then
+      cp -r "$skill_dir/$res_dir" "$SKILLS_DIR/$skill_name/"
+    fi
+  done
+  ok "$action skill: $skill_name"
 done
 echo
 
@@ -154,7 +157,7 @@ echo
 echo "Installed:"
 echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
-echo "  Skills:      adr, cloudagent-env"
+echo "  Skills:      adr, cloudagent-env, subagent-finder"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"

@@ -1,0 +1,23 @@
+{
+  "skill_name": "subagent-finder",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to refactor this Node.js API to use proper error handling and add input validation. Can you find me a good subagent for this?",
+      "expected_output": "Should search for relevant agents, present 2-3 options to the user with descriptions, and wait for user to choose before spawning.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I want to set up a CI/CD pipeline with GitHub Actions for our Terraform infrastructure. Find me an agent that can help.",
+      "expected_output": "Should search for infrastructure/CI-related agents, present options like terraform-engineer or CI specialist, and let user choose.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "We need to do a security review of our authentication system. What subagents are available for this?",
+      "expected_output": "Should search for security-related agents, present options like security-auditor, and let user browse/choose.",
+      "files": []
+    }
+  ]
+}
