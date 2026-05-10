@@ -1,0 +1,77 @@
+{
+  "skill_name": "adr",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We should switch from Jest to Vitest for our test runner, it's way faster and has better ESM support",
+      "expected_output": "The skill should check for existing ADRs before agreeing. If an ADR exists that chose Jest, it should hard-block and explain the conflict. If no ADRs exist, it should offer to create one recording the decision.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "References the existing Jest ADR (0001-use-jest-for-testing.md) by name or number",
+          "type": "qualitative"
+        },
+        {
+          "text": "Refuses to proceed with the switch or explicitly blocks the change",
+          "type": "qualitative"
+        },
+        {
+          "text": "Explains why the existing ADR conflicts with the proposed change",
+          "type": "qualitative"
+        },
+        {
+          "text": "Offers the user explicit options: override for this task, or create a superseding ADR",
+          "type": "qualitative"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create an ADR for our decision to use PostgreSQL instead of MongoDB for the new user service",
+      "expected_output": "Should create a properly formatted ADR file with sequential numbering, correct template, status 'accepted', today's date, and meaningful context/consequences sections.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Creates an ADR file with sequential numbering (0002-*.md since 0001 exists)",
+          "type": "qualitative"
+        },
+        {
+          "text": "Uses kebab-case filename format",
+          "type": "qualitative"
+        },
+        {
+          "text": "Includes all required template sections: Status, Date, Context, Decision, Consequences, Supersedes",
+          "type": "qualitative"
+        },
+        {
+          "text": "Acknowledges the existing PostgreSQL ADR (0001) and its relevance to this decision",
+          "type": "qualitative"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "List all our architecture decisions",
+      "expected_output": "Should locate the ADR directory, read all files, and present them as a table with number, title, status, and date.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Lists all 3 ADRs (REST API, Redis caching, GraphQL migration)",
+          "type": "qualitative"
+        },
+        {
+          "text": "Clearly marks ADR 0001 as superseded",
+          "type": "qualitative"
+        },
+        {
+          "text": "Shows the supersession relationship between 0001 and 0003",
+          "type": "qualitative"
+        },
+        {
+          "text": "Presents results in a structured table format",
+          "type": "qualitative"
+        }
+      ]
+    }
+  ]
+}

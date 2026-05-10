@@ -1,0 +1,23 @@
+{
+  "skill_name": "cloudagent-env",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just ran the test suite and it generated an HTML coverage report at /home/workspace/project/coverage/index.html — can you show it to the user so they can review it?",
+      "expected_output": "Should use cloudagent open-file to present the coverage report, not just print the path or tell the user to open it manually.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Start a dev server for this Next.js app on port 3000 so the user can preview it in their browser",
+      "expected_output": "Should start the server and use cloudagent http-forwards (not cloudagent ports) to create a public HTTPS URL, then use cloudagent open-url to send it to the user.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Set up the superpowers visual companion browser tool so I can use it for live UI iteration",
+      "expected_output": "Should create an HTTP forward for the companion port, patch ws:// to wss:// in the companion HTML, and send the forwarded URL to the user via cloudagent open-url.",
+      "files": []
+    }
+  ]
+}
