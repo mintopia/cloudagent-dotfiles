@@ -157,7 +157,7 @@ echo
 echo "Installed:"
 echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
-echo "  Skills:      adr, cloudagent-env, subagent-finder"
+echo "  Skills:      adr, cloudagent, subagent-finder"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"
