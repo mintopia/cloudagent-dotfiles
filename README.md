@@ -1,39 +1,62 @@
 # Mintopia's Cloud Agent Dotfiles
 
-Dotfiles for Cloud Agent environments. Run `./install.sh` to set up a new workspace.
+Dotfiles for [Cloud Agent](https://cloudagent.mintopia.net) environments. Automates the setup of plugins, skills, MCP servers, statusline, settings, and agent instructions for a new workspace.
 
-## What It Does
-
-The install script configures:
-
-- **Plugins:** [Superpowers](https://github.com/obra/superpowers), [Impeccable](https://impeccable.style), [Context Mode](https://github.com/mksglu/context-mode)
-- **MCP servers:** [jCodeMunch](https://j.gravelle.us/jCodeMunch) (via uvx)
-- **Statusline:** Custom statusline with git, model, context window, token counts, and cost
-- **Settings:** Model, theme, keybindings
-- **Skills:** ADR enforcement (`/adr`), Cloud Agent environment conventions
-- **Decision memory:** ADR-based decision tracking appended to user `AGENTS.md`
-
-## Usage
+## Install
 
 ```bash
+git clone https://github.com/mintopia/cloudagent-dotfiles.git ~/dotfiles
+cd ~/dotfiles
 ./install.sh
 ```
 
-The script is idempotent — safe to run multiple times.
+The script is idempotent — safe to run multiple times. Restart Claude Code after running for all changes to take effect.
+
+## What It Does
+
+### Plugins
+
+- [Superpowers](https://github.com/obra/superpowers) — visual companion, brainstorming tools
+- [Impeccable](https://impeccable.style) — code style enforcement
+- [Context Mode](https://github.com/mksglu/context-mode) — context window protection and FTS5 knowledge base
+
+### MCP Servers
+
+- [jCodeMunch](https://j.gravelle.us/jCodeMunch) — codebase indexing and analysis (via uvx)
+
+### Skills
+
+- **adr** — Architecture Decision Record enforcement and creation. Hard-blocks on conflicting ADRs, sequential numbering, `/adr` command for interactive creation.
+- **cloudagent** — Complete `cloudagent` CLI reference and workspace conventions. Covers file/URL presentation (`open-file`, `open-url`), HTTP forwards for web servers, notifications, visual companion setup (including the critical WSS patch), and kanban ticket management (full reference in `references/kanban.md` for progressive disclosure).
+- **subagent-finder** — Searches the [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) catalog (150+ agents) to find specialist subagents without loading them all into context. Includes `/subagents` command to scan a project's tech stack, recommend matching agents, and install them to `.claude/agents/`.
+
+### Configuration
+
+- **Statusline** — Custom statusline showing cwd, git branch, model, context bar chart, token counts (cumulative + per-call with read/write/cached), session cost estimate, and clock.
+- **Settings** — Opus model, dark theme, dangerous mode skip, in-process teammate mode.
+- **Keybindings** — Shift+Enter for newline in chat.
+- **Decision memory** — ADR-based decision tracking appended to user `AGENTS.md`, teaching agents to search for and respect existing architecture decisions.
 
 ## Structure
 
 ```
-├── install.sh              # Main setup script
-├── statusline-command.sh   # Custom Claude Code statusline
+├── install.sh                              # Main setup script
+├── statusline-command.sh                   # Custom Claude Code statusline
 ├── config/
-│   ├── settings.json       # Claude Code settings
-│   ├── keybindings.json    # Keybinding overrides
-│   └── agents-append.md    # Decision memory instructions (appended to ~/.claude/AGENTS.md)
+│   ├── settings.json                       # Claude Code settings
+│   ├── keybindings.json                    # Keybinding overrides
+│   └── agents-append.md                    # Decision memory (appended to ~/.claude/AGENTS.md)
 ├── skills/
-│   ├── adr/SKILL.md        # ADR skill — enforces existing ADRs, /adr creates new ones
-│   └── cloudagent-env/SKILL.md  # Cloud Agent conventions — file/URL presentation, http-forwards, visual companion
+│   ├── adr/SKILL.md                        # ADR enforcement and /adr command
+│   ├── cloudagent/
+│   │   ├── SKILL.md                        # CLI reference and workspace conventions
+│   │   └── references/kanban.md            # Full kanban ticket system reference
+│   └── subagent-finder/
+│       ├── SKILL.md                        # Agent search and /subagents command
+│       └── scripts/
+│           ├── search.sh                   # Keyword search against agent catalog
+│           └── assess.sh                   # Project tech stack scanner
 └── decision-memory/
-    ├── decision-memory.md  # How the decision memory system works
-    └── example-adr.md      # ADR template
+    ├── decision-memory.md                  # How the decision memory system works
+    └── example-adr.md                      # ADR template
 ```
