@@ -59,8 +59,9 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 │       └── scripts/
 │           ├── search.sh                   # Keyword search against agent catalog
 │           └── assess.sh                   # Project tech stack scanner
-└── decision-memory/
-    ├── decision-memory.md                  # How the decision memory system works
-    ├── example-adr.md                      # ADR template
-    └── 0002-serve-js-html-via-http-forward.md  # Use web server for interactive HTML
+├── decision-memory/
+│   ├── decision-memory.md                  # How the decision memory system works
+│   └── example-adr.md                      # ADR template
+└── docs/decisions/
+    └── 0001-serve-js-html-via-http-forward.md  # Use web server for interactive HTML
 ```
