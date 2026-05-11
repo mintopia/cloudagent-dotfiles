@@ -149,6 +149,16 @@ done
 echo
 
 # ---------------------------------------------------------------------------
+# Git
+# ---------------------------------------------------------------------------
+
+info "Configuring git..."
+git config --global user.name "Jessica Smith"
+git config --global user.email "jess@mintopia.net"
+ok "Git user: Jessica Smith <jess@mintopia.net>"
+echo
+
+# ---------------------------------------------------------------------------
 # Done
 # ---------------------------------------------------------------------------
 
@@ -162,5 +172,6 @@ echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"
 echo "  AGENTS.md:   decision memory layer"
+echo "  Git:         Jessica Smith <jess@mintopia.net>"
 echo
 echo "Restart Claude Code for all changes to take effect."
