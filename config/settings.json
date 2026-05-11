@@ -2,5 +2,6 @@
   "model": "claude-opus-4-6",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "teammateMode": "in-process"
+  "teammateMode": "in-process",
+  "skillListingBudgetFraction": 0.05
 }
