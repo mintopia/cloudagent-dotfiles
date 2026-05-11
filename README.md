@@ -28,12 +28,14 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 
 - **adr** — Architecture Decision Record enforcement and creation. Hard-blocks on conflicting ADRs, sequential numbering, `/adr` command for interactive creation.
 - **cloudagent** — Complete `cloudagent` CLI reference and workspace conventions. Covers file/URL presentation (`open-file`, `open-url`), HTTP forwards for web servers, notifications, visual companion setup (including the critical WSS patch), and kanban ticket management (full reference in `references/kanban.md` for progressive disclosure).
+- **quality-gate** — Enforces that all test, lint, and quality check failures are fixed before work is considered complete. Prevents Claude from dismissing failures as "unrelated" or "pre-existing". If the suite is red, it gets fixed.
 - **subagent-finder** — Searches the [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) catalog (150+ agents) to find specialist subagents without loading them all into context. Includes `/subagents` command to scan a project's tech stack, recommend matching agents, and install them to `.claude/agents/`.
 
 ### Configuration
 
 - **Statusline** — Custom statusline showing cwd, git branch, model, context bar chart, token counts (cumulative + per-call with read/write/cached), session cost estimate, and clock.
-- **Settings** — Opus model, dark theme, dangerous mode skip, in-process teammate mode.
+- **Settings** — Opus model, dark theme, dangerous mode skip, in-process teammate mode, 5% skill listing budget.
+- **Git** — Global user name and email (Jessica Smith \<jess@mintopia.net\>).
 - **Keybindings** — Shift+Enter for newline in chat.
 - **Decision memory** — ADR-based decision tracking appended to user `AGENTS.md`, teaching agents to search for and respect existing architecture decisions.
 
@@ -51,6 +53,7 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 │   ├── cloudagent/
 │   │   ├── SKILL.md                        # CLI reference and workspace conventions
 │   │   └── references/kanban.md            # Full kanban ticket system reference
+│   ├── quality-gate/SKILL.md               # Enforce fixing all test/lint failures
 │   └── subagent-finder/
 │       ├── SKILL.md                        # Agent search and /subagents command
 │       └── scripts/
@@ -58,5 +61,6 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 │           └── assess.sh                   # Project tech stack scanner
 └── decision-memory/
     ├── decision-memory.md                  # How the decision memory system works
-    └── example-adr.md                      # ADR template
+    ├── example-adr.md                      # ADR template
+    └── 0002-serve-js-html-via-http-forward.md  # Use web server for interactive HTML
 ```
