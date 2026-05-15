@@ -1,0 +1,23 @@
+{
+  "skill_name": "pickup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/pickup",
+      "expected_output": "A structured summary reconstructed from JSONL, git history, and memory — not a full /resume replay",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "where were we?",
+      "expected_output": "A session recap with context about what was happening, what changed, and what's next",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "catch me up",
+      "expected_output": "An adaptive summary (brief or structured depending on session complexity) with suggested next steps",
+      "files": []
+    }
+  ]
+}
