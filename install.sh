@@ -62,14 +62,35 @@ echo
 # ---------------------------------------------------------------------------
 
 info "Configuring MCP servers..."
-if grep -q '"jcodemunch"' "$HOME/.claude.json" 2>/dev/null; then
-  ok "MCP server already configured: jcodemunch"
+
+JCODEMUNCH_REPO="https://github.com/jgravelle/jcodemunch-mcp.git"
+
+if command -v pipx &>/dev/null; then
+  JCODEMUNCH_CMD="pipx"
+elif command -v pip &>/dev/null; then
+  JCODEMUNCH_CMD="pip"
 else
-  info "Adding jcodemunch MCP server..."
-  if claude mcp add -s user jcodemunch -- uvx jcodemunch-mcp; then
-    ok "Added MCP server: jcodemunch"
+  err "Neither pipx nor pip found — cannot install jcodemunch-mcp"
+  JCODEMUNCH_CMD=""
+fi
+
+if [ -n "$JCODEMUNCH_CMD" ]; then
+  info "Installing jcodemunch-mcp via $JCODEMUNCH_CMD from $JCODEMUNCH_REPO..."
+  if "$JCODEMUNCH_CMD" install "git+$JCODEMUNCH_REPO" 2>/dev/null; then
+    ok "Installed jcodemunch-mcp via $JCODEMUNCH_CMD"
   else
-    err "Failed to add jcodemunch MCP server"
+    warn "jcodemunch-mcp may already be installed, continuing..."
+  fi
+
+  if grep -q '"jcodemunch"' "$HOME/.claude.json" 2>/dev/null; then
+    ok "MCP server already configured: jcodemunch"
+  else
+    info "Adding jcodemunch MCP server..."
+    if claude mcp add -s user jcodemunch -- jcodemunch-mcp; then
+      ok "Added MCP server: jcodemunch"
+    else
+      err "Failed to add jcodemunch MCP server"
+    fi
   fi
 fi
 echo
@@ -132,12 +153,15 @@ info "Installing skills..."
 SKILLS_DIR="$CLAUDE_DIR/skills"
 mkdir -p "$SKILLS_DIR"
 
+# Local skills from this dotfiles repo
 for skill_dir in "$DOTFILES_DIR"/skills/*/; do
   skill_name="$(basename "$skill_dir")"
   action="Installed"
   [ -d "$SKILLS_DIR/$skill_name" ] && [ -f "$SKILLS_DIR/$skill_name/SKILL.md" ] && action="Updated"
   mkdir -p "$SKILLS_DIR/$skill_name"
   cp "$skill_dir/SKILL.md" "$SKILLS_DIR/$skill_name/SKILL.md"
+  # Copy additional markdown files (prompt templates, etc.)
+  find "$skill_dir" -maxdepth 1 -name '*.md' ! -name 'SKILL.md' -exec cp {} "$SKILLS_DIR/$skill_name/" \;
   # Copy bundled resources (scripts/, references/, assets/) if present
   for res_dir in scripts references assets; do
     if [ -d "$skill_dir/$res_dir" ]; then
@@ -146,6 +170,17 @@ for skill_dir in "$DOTFILES_DIR"/skills/*/; do
   done
   ok "$action skill: $skill_name"
 done
+
+# mattpocock/skills — featured skills via npx
+MATT_SKILLS="handoff improve-codebase-architecture prototype tdd to-issues to-prd"
+info "Installing mattpocock/skills: $MATT_SKILLS"
+if npx -y skills add mattpocock/skills \
+    --skill $MATT_SKILLS \
+    -g -y --copy; then
+  ok "Installed mattpocock/skills"
+else
+  err "Failed to install mattpocock/skills"
+fi
 echo
 
 # ---------------------------------------------------------------------------
@@ -167,7 +202,8 @@ echo
 echo "Installed:"
 echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
-echo "  Skills:      adr, cloudagent, quality-gate, subagent-finder"
+echo "  Skills:      adr, cloudagent, local-llm-development, quality-gate, subagent-finder"
+echo "  Skills (mp): handoff, improve-codebase-architecture, prototype, tdd, to-issues, to-prd"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"
