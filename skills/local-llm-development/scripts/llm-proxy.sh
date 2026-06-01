@@ -9,9 +9,31 @@ set -euo pipefail
 ###############################################################################
 
 error_json() {
-  local msg="$1"
-  printf '{"type":"error","content":"%s"}\n' "$(echo "$msg" | sed 's/"/\\"/g')"
+  jq -n --arg msg "$1" '{"type":"error","content":$msg}'
   exit 1
+}
+
+atomic_write() {
+  local target="$1"
+  local tmp
+  tmp=$(mktemp "${target}.tmp.XXXX")
+  cat > "$tmp"
+  mv "$tmp" "$target"
+}
+
+safe_curl() {
+  local tmp_body tmp_code
+  tmp_body=$(mktemp)
+  tmp_code=$(curl -s -o "$tmp_body" --write-out "%{http_code}" "$@" 2>/dev/null) || {
+    rm -f "$tmp_body"
+    echo ""
+    echo "000"
+    return 1
+  }
+  cat "$tmp_body"
+  rm -f "$tmp_body"
+  echo ""
+  echo "$tmp_code"
 }
 
 usage() {
@@ -62,22 +84,20 @@ cmd_ping() {
 
   api_url="$(resolve_api_url "$api_url")"
 
-  local http_response
-  http_response=$(curl -s -w "\n%{http_code}" --max-time 10 "${api_url}/models" 2>&1) || {
+  local response http_code body
+  response=$(safe_curl --max-time 10 "${api_url}/models") || {
     error_json "Cannot reach LM Studio at ${api_url}. Check that LM Studio is running and the API server is enabled. If running remotely, verify your SSH tunnel."
   }
 
-  local body http_code
-  http_code=$(echo "$http_response" | tail -n1)
-  body=$(echo "$http_response" | sed '$d')
+  http_code=$(echo "$response" | tail -n1)
+  body=$(echo "$response" | sed '$d')
 
   if [[ "$http_code" != "200" ]]; then
     error_json "Cannot reach LM Studio at ${api_url}. HTTP status ${http_code}."
   fi
 
-  # Extract model IDs
   local models
-  models=$(echo "$body" | jq -r '.data[]?.id // empty' 2>/dev/null) || {
+  models=$(echo "$body" | jq -r '.data[]?.id // empty') || {
     error_json "Cannot reach LM Studio at ${api_url}. Invalid response from /models endpoint."
   }
 
@@ -86,9 +106,9 @@ cmd_ping() {
   fi
 
   local model_list
-  model_list=$(echo "$models" | paste -sd', ' -)
+  model_list=$(echo "$models" | tr '\n' ',' | sed 's/,$//')
 
-  printf '{"type":"text","content":"LM Studio reachable. Models available: %s"}\n' "$model_list"
+  jq -n --arg models "$model_list" '{"type":"text","content":"LM Studio reachable. Models available: \($models)"}'
 }
 
 ###############################################################################
@@ -114,30 +134,27 @@ cmd_start() {
   fi
 
   if [[ -z "$model" ]]; then
-    # Auto-detect: query /models and use the first one
-    local http_response
-    http_response=$(curl -s -w "\n%{http_code}" --max-time 10 "${api_url}/models" 2>&1) || {
+    local response http_code body
+    response=$(safe_curl --max-time 10 "${api_url}/models") || {
       error_json "Cannot reach LM Studio at ${api_url} to auto-detect model."
     }
 
-    local body http_code
-    http_code=$(echo "$http_response" | tail -n1)
-    body=$(echo "$http_response" | sed '$d')
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
 
     if [[ "$http_code" != "200" ]]; then
       error_json "Cannot reach LM Studio at ${api_url}. HTTP status ${http_code}."
     fi
 
-    model=$(echo "$body" | jq -r '.data[0].id // empty' 2>/dev/null)
+    model=$(echo "$body" | jq -r '.data[0].id // empty')
 
     if [[ -z "$model" ]]; then
       error_json "No models loaded in LM Studio. Load a model before starting a session."
     fi
   fi
 
-  # Create session file
   local session_file
-  session_file=$(mktemp /tmp/llm-session-XXXX.json)
+  session_file=$(mktemp "${TMPDIR:-/tmp}/llm-session-XXXX.json")
 
   jq -n \
     --arg api_url "$api_url" \
@@ -192,63 +209,56 @@ cmd_chat() {
 
   # Append new messages to session
   if [[ -n "$message" ]]; then
-    # Add user message
-    local updated
-    updated=$(jq --arg msg "$message" \
-      '.messages += [{"role": "user", "content": $msg}]' "$session")
-    echo "$updated" > "$session"
+    jq --arg msg "$message" \
+      '.messages += [{"role": "user", "content": $msg}]' "$session" \
+      | atomic_write "$session"
   fi
 
   if [[ -n "$tool_results" ]]; then
-    # tool_results is a JSON array of {"tool_call_id":"...","content":"..."}
-    # Each becomes a message with role "tool"
-    local updated
-    updated=$(jq --argjson results "$tool_results" \
+    jq --argjson results "$tool_results" \
       '.messages += [
         $results[] | {
           "role": "tool",
           "tool_call_id": .tool_call_id,
           "content": .content
         }
-      ]' "$session")
-    echo "$updated" > "$session"
+      ]' "$session" \
+      | atomic_write "$session"
   fi
 
-  # Build the API request body
+  # Build the API request body and POST to chat/completions
   local request_body
   if [[ -n "$tools" && -f "$tools" ]]; then
     request_body=$(jq -n \
       --arg model "$model" \
-      --argjson messages "$(jq '.messages' "$session")" \
-      --argjson tools "$(jq '.tools' "$tools")" \
+      --slurpfile sess "$session" \
+      --slurpfile tfile "$tools" \
       '{
         "model": $model,
-        "messages": $messages,
-        "tools": $tools,
+        "messages": $sess[0].messages,
+        "tools": $tfile[0].tools,
         "tool_choice": "auto"
       }')
   else
     request_body=$(jq -n \
       --arg model "$model" \
-      --argjson messages "$(jq '.messages' "$session")" \
+      --slurpfile sess "$session" \
       '{
         "model": $model,
-        "messages": $messages
+        "messages": $sess[0].messages
       }')
   fi
 
-  # POST to chat/completions
-  local http_response
-  http_response=$(curl -s -w "\n%{http_code}" --max-time 300 \
+  local response http_code body
+  response=$(echo "$request_body" | safe_curl --max-time 300 \
     -H "Content-Type: application/json" \
-    -d "$request_body" \
-    "${api_url}/chat/completions" 2>&1) || {
+    --data-binary @- \
+    "${api_url}/chat/completions") || {
     error_json "Failed to reach LM Studio at ${api_url}/chat/completions."
   }
 
-  local body http_code
-  http_code=$(echo "$http_response" | tail -n1)
-  body=$(echo "$http_response" | sed '$d')
+  http_code=$(echo "$response" | tail -n1)
+  body=$(echo "$response" | sed '$d')
 
   if [[ "$http_code" != "200" ]]; then
     local err_msg
@@ -260,16 +270,14 @@ cmd_chat() {
     fi
   fi
 
-  # Parse the response
   local choice
-  choice=$(echo "$body" | jq '.choices[0].message' 2>/dev/null) || {
+  choice=$(echo "$body" | jq '.choices[0].message') || {
     error_json "Invalid response from LM Studio: could not parse choices."
   }
 
-  # Append assistant message to session
-  local updated
-  updated=$(jq --argjson msg "$choice" '.messages += [$msg]' "$session")
-  echo "$updated" > "$session"
+  # Append assistant message to session atomically
+  jq --argjson msg "$choice" '.messages += [$msg]' "$session" \
+    | atomic_write "$session"
 
   # Check if the response contains tool calls
   local has_tool_calls
