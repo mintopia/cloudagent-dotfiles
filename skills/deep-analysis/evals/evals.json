@@ -1,0 +1,35 @@
+{
+  "skill_name": "deep-analysis",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use deep-analysis on this: should we move our session store from Postgres to Redis? Go deep before recommending.",
+      "expected_output": "Should run the depth loop: FRAME the goal/intent/boundaries, DIVERGE >=3 distinct options (e.g. stay on Postgres, Redis, hybrid), dispatch fresh-context skeptic sub-agents to refute the leading option, arbitrate, and synthesize a grounded recommendation with refuted alternatives and risks.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "/deep-analysis rounds=2 verifiers=4 artifact   Our checkout conversion dropped 8% after the last release. Deeply analyze the most likely cause.",
+      "expected_output": "Should echo resolved tunables (rounds=2, verifiers=4, artifact on), enumerate >=3 distinct hypotheses, dispatch 4 fresh-context verifiers with distinct lenses, iterate at most 2 rounds, and ALSO write a decision-memory/ analysis artifact.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Stress-test this analysis with deep-analysis: I've concluded the memory leak is in the image-resize worker because RSS climbs during batch jobs.",
+      "expected_output": "Should treat the stated conclusion as the leading candidate, dispatch fresh-context refuters (NOT given the user's reasoning) to attack it, and either kill it on majority-refute or confirm it survives, with Claude as final arbiter.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "What's the capital of France?",
+      "expected_output": "Should NOT trigger deep-analysis. This is a trivial factual question; answer directly.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Can you review the changes on my current branch?",
+      "expected_output": "Should NOT trigger deep-analysis. Reviewing already-written code is /code-review's job, not this skill.",
+      "files": []
+    }
+  ]
+}
