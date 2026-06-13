@@ -101,8 +101,8 @@ you reject, log one line on *why* (factually wrong, out of scope, cost not worth
 Don't cave to every objection (that defeats the check) and don't ignore them (that defeats
 the point).
 
-**Stop when** the leading direction survives a full round with no *new material* objection,
-or you hit `rounds`. The loop ALWAYS terminates. On deadlock at `rounds`, do NOT fake
+**Stop when** the leading direction survives a round with **majority `HOLDS` and no
+*new material* objection**, or you hit `rounds`. The loop ALWAYS terminates. On deadlock at `rounds`, do NOT fake
 convergence — present the unresolved disagreement (each open point + your counter-position)
 and hand the tie to the user.
 
@@ -127,7 +127,7 @@ with these sections:
 
 ```markdown
 # Deep analysis: <topic>
-_Run via deep-analysis — <date>, <rounds> round(s), <verifiers> verifiers/round_
+_Run via deep-analysis — <date>, <N rounds run>, <verifiers> verifiers/round_
 
 ## Problem & intent
 ## Approaches considered
