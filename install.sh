@@ -202,7 +202,7 @@ echo
 echo "Installed:"
 echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
-echo "  Skills:      adr, cloudagent, local-llm-development, quality-gate, subagent-finder"
+echo "  Skills:      adr, cloudagent, deep-analysis, local-llm-development, quality-gate, subagent-finder"
 echo "  Skills (mp): handoff, improve-codebase-architecture, prototype, tdd, to-issues, to-prd"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
