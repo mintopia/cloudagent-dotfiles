@@ -122,6 +122,16 @@ else
   ok "Installed settings.json"
 fi
 
+# Wire the statusline into settings.json with the absolute installed path.
+# Done here (not in config/settings.json) because the path is machine-specific;
+# setting the key every run keeps it idempotent.
+tmp=$(mktemp)
+jq --arg cmd "$CLAUDE_DIR/statusline-command.sh" \
+   '.statusLine = {type: "command", command: $cmd}' \
+   "$CLAUDE_DIR/settings.json" > "$tmp"
+mv "$tmp" "$CLAUDE_DIR/settings.json"
+ok "Wired statusline into settings.json"
+
 cp "$DOTFILES_DIR/config/keybindings.json" "$CLAUDE_DIR/keybindings.json"
 ok "Installed keybindings.json"
 echo
