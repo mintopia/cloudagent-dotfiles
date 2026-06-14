@@ -28,6 +28,12 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 
 - **adr** — Architecture Decision Record enforcement and creation. Hard-blocks on conflicting ADRs, sequential numbering, `/adr` command for interactive creation.
 - **cloudagent** — Complete `cloudagent` CLI reference and workspace conventions. Covers file/URL presentation (`open-file`, `open-url`), HTTP forwards for web servers, notifications, visual companion setup (including the critical WSS patch), and kanban ticket management (full reference in `references/kanban.md` for progressive disclosure).
+- **codex-review** — Standalone adversarial plan-review loop. Claude drafts a plan into `PLAN.md`, OpenAI Codex critiques it read-only across rounds (`VERDICT:APPROVED`/`REVISE`) until it converges or hits a round cap. `/codex-review` for when you already have a plan and just want the cross-model stress-test.
+- **deep-analysis** — Explicitly-invoked depth harness (`/deep-analysis`) that runs a diverge → refute → converge loop with fresh-context adversarial sub-agents, killing weak directions on majority-refute with Claude as final arbiter. For high-stakes design, architecture, and tradeoff calls where getting it right beats getting it fast.
+- **grill-me-codex** — Two-act plan hardening (`/grill-me-codex`). Act 1 interviews you one question at a time until intent is locked; Act 2 hands the plan to Codex for adversarial cross-model review. Builds on Matt Pocock's `grill-me` (MIT).
+- **grill-with-docs-codex** — `grill-me-codex` plus living documentation (`/grill-with-docs-codex`). Act 1 challenges your plan against `CONTEXT.md`/ADRs and updates them inline as decisions crystallise; Act 2 is the Codex review loop. Builds on Matt Pocock's `grill-with-docs` (MIT).
+- **local-llm-development** — Delegates implementation to a local LLM (LM Studio) while Claude orchestrates and reviews — a third execution option alongside sequential/parallel Claude subagents. Bundles an `llm-proxy.sh`, tool schemas, and an implementer prompt.
+- **pickup** — Lightweight session recap (`/pickup`, or "where were we?") that reconstructs context from durable artifacts (session JSONL, git state, memory) instead of replaying the full conversation like `/resume`. Includes `scripts/extract_session.py`.
 - **quality-gate** — Enforces that all test, lint, and quality check failures are fixed before work is considered complete. Prevents Claude from dismissing failures as "unrelated" or "pre-existing". If the suite is red, it gets fixed.
 - **subagent-finder** — Searches the [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) catalog (150+ agents) to find specialist subagents without loading them all into context. Includes `/subagents` command to scan a project's tech stack, recommend matching agents, and install them to `.claude/agents/`.
 
@@ -53,6 +59,16 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 │   ├── cloudagent/
 │   │   ├── SKILL.md                        # CLI reference and workspace conventions
 │   │   └── references/kanban.md            # Full kanban ticket system reference
+│   ├── codex-review/SKILL.md               # Standalone Claude↔Codex plan-review loop
+│   ├── deep-analysis/SKILL.md              # Diverge→refute→converge depth harness
+│   ├── grill-me-codex/SKILL.md             # Interview you, then Codex-review the plan
+│   ├── grill-with-docs-codex/SKILL.md      # grill-me-codex + living CONTEXT.md/ADRs
+│   ├── local-llm-development/
+│   │   ├── SKILL.md                        # Delegate implementation to a local LLM
+│   │   └── scripts/                        # LM Studio proxy + tool schemas
+│   ├── pickup/
+│   │   ├── SKILL.md                        # /pickup session recap from artifacts
+│   │   └── scripts/extract_session.py      # Session JSONL extractor
 │   ├── quality-gate/SKILL.md               # Enforce fixing all test/lint failures
 │   └── subagent-finder/
 │       ├── SKILL.md                        # Agent search and /subagents command
