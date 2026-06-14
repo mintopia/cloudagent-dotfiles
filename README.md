@@ -22,7 +22,7 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 
 ### MCP Servers
 
-- [jCodeMunch](https://j.gravelle.us/jCodeMunch) — codebase indexing and analysis (via uvx)
+- [jCodeMunch](https://j.gravelle.us/jCodeMunch) — codebase indexing and analysis (via pipx/pip)
 
 ### Skills
 

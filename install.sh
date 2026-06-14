@@ -163,7 +163,9 @@ info "Installing skills..."
 SKILLS_DIR="$CLAUDE_DIR/skills"
 mkdir -p "$SKILLS_DIR"
 
-# Local skills from this dotfiles repo
+# Local skills from this dotfiles repo. Collect names so the summary below is
+# derived from the filesystem rather than a hand-maintained (drift-prone) list.
+INSTALLED_SKILLS=()
 for skill_dir in "$DOTFILES_DIR"/skills/*/; do
   skill_name="$(basename "$skill_dir")"
   action="Installed"
@@ -179,6 +181,7 @@ for skill_dir in "$DOTFILES_DIR"/skills/*/; do
     fi
   done
   ok "$action skill: $skill_name"
+  INSTALLED_SKILLS+=("$skill_name")
 done
 
 # mattpocock/skills — featured skills via npx
@@ -209,10 +212,12 @@ echo
 
 printf '\033[32m━━━ Setup complete ━━━\033[0m\n'
 echo
+# Join the collected skill names as "a, b, c" (derived, never drifts).
+skills_joined=$(printf ', %s' "${INSTALLED_SKILLS[@]}"); skills_joined=${skills_joined:2}
 echo "Installed:"
 echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
-echo "  Skills:      adr, cloudagent, deep-analysis, local-llm-development, quality-gate, subagent-finder"
+echo "  Skills:      $skills_joined"
 echo "  Skills (mp): handoff, improve-codebase-architecture, prototype, tdd, to-issues, to-prd"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
