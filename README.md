@@ -77,6 +77,29 @@ Configuration (environment variables):
 
 Run the tests with `bash hooks/tests/night-handoff.test.sh`.
 
+## Cloudagent skill hook
+
+`hooks/cloudagent-skill.sh` is a `SessionStart` hook that makes Claude always load
+the `cloudagent` skill at the start of every session, so Cloud Agent workspace
+conventions (presenting files/URLs, exposing web servers, notifications, kanban
+tickets) are in context before Claude does anything.
+
+How it works:
+
+- On `SessionStart`, the hook emits `additionalContext` instructing Claude to
+  invoke the `cloudagent` skill via the Skill tool.
+- It only fires inside a Cloud Agent workspace — detected the same way the skill
+  is (the `cloudagent` CLI on `PATH` or the `CLOUDAGENT_API_URL` env var) — so it
+  stays silent on other machines.
+
+Configuration (environment variables):
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `CLOUDAGENT_SKILL_HOOK_DISABLE` | _(unset)_ | Set to any value to disable the hook. |
+
+Tests live alongside the night-handoff tests: `bash hooks/tests/night-handoff.test.sh`.
+
 ## Structure
 
 ```

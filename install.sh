@@ -158,16 +158,22 @@ cp "$DOTFILES_DIR/hooks/night-handoff.sh" "$HOOKS_DIR/night-handoff.sh"
 chmod +x "$HOOKS_DIR/night-handoff.sh"
 ok "Installed night-handoff.sh"
 
-# Wire the Stop / UserPromptSubmit hooks idempotently, preserving any existing
-# hooks. Absolute paths are machine-specific, so this is done here (not in
-# config/settings.json) and is safe to re-run.
+cp "$DOTFILES_DIR/hooks/cloudagent-skill.sh" "$HOOKS_DIR/cloudagent-skill.sh"
+chmod +x "$HOOKS_DIR/cloudagent-skill.sh"
+ok "Installed cloudagent-skill.sh"
+
+# Wire the Stop / UserPromptSubmit / SessionStart hooks idempotently, preserving
+# any existing hooks. Absolute paths are machine-specific, so this is done here
+# (not in config/settings.json) and is safe to re-run.
 STOP_CMD="$HOOKS_DIR/night-handoff.sh stop"
 TOUCH_CMD="$HOOKS_DIR/night-handoff.sh touch"
+SESSION_START_CMD="$HOOKS_DIR/cloudagent-skill.sh"
 jq_write "$CLAUDE_DIR/settings.json" \
    --arg stop_cmd "$STOP_CMD" --arg touch_cmd "$TOUCH_CMD" \
+   --arg session_start_cmd "$SESSION_START_CMD" \
    -f "$DOTFILES_DIR/hooks/settings-hooks.jq" \
    "$CLAUDE_DIR/settings.json"
-ok "Wired night-handoff hooks into settings.json"
+ok "Wired night-handoff + cloudagent-skill hooks into settings.json"
 echo
 
 cp "$DOTFILES_DIR/config/keybindings.json" "$CLAUDE_DIR/keybindings.json"
@@ -257,7 +263,7 @@ echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): handoff, improve-codebase-architecture, prototype, tdd, to-issues, to-prd"
-echo "  Hooks:       night-handoff (overnight handoff)"
+echo "  Hooks:       night-handoff (overnight handoff), cloudagent-skill (session-start)"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"

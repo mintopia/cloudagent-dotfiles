@@ -122,14 +122,17 @@ ok "stale handoff allows a new handoff"  'emits_block'
 teardown
 
 # --- settings-hooks.jq ------------------------------------------------------
-wire() { jq --arg stop_cmd "HH stop" --arg touch_cmd "HH touch" -f "$FILTER"; }
+wire() { jq --arg stop_cmd "HH stop" --arg touch_cmd "HH touch" \
+            --arg session_start_cmd "HH session" -f "$FILTER"; }
 
 OUT="$(printf '{}' | wire)"
 ok "adds Stop command"          'printf "%s" "$OUT" | jq -e "[.hooks.Stop[].hooks[].command]|index(\"HH stop\")" >/dev/null'
 ok "adds UserPromptSubmit cmd"  'printf "%s" "$OUT" | jq -e "[.hooks.UserPromptSubmit[].hooks[].command]|index(\"HH touch\")" >/dev/null'
+ok "adds SessionStart command"  'printf "%s" "$OUT" | jq -e "[.hooks.SessionStart[].hooks[].command]|index(\"HH session\")" >/dev/null'
 
 OUT="$(printf '{}' | wire | wire)"
-ok "idempotent: no duplicate Stop" 'test "$(printf "%s" "$OUT" | jq "[.hooks.Stop[].hooks[].command]|map(select(.==\"HH stop\"))|length")" -eq 1'
+ok "idempotent: no duplicate Stop"         'test "$(printf "%s" "$OUT" | jq "[.hooks.Stop[].hooks[].command]|map(select(.==\"HH stop\"))|length")" -eq 1'
+ok "idempotent: no duplicate SessionStart" 'test "$(printf "%s" "$OUT" | jq "[.hooks.SessionStart[].hooks[].command]|map(select(.==\"HH session\"))|length")" -eq 1'
 
 EXISTING='{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"other.sh"}]}]}}'
 OUT="$(printf '%s' "$EXISTING" | wire)"
@@ -146,6 +149,29 @@ touch -d "40 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"
 NIGHT_HANDOFF_TZ=UTC NIGHT_HANDOFF_START=0 NIGHT_HANDOFF_END=0 run stop "$SID"
 ok "real TZ path computes hour (closed window stays silent)" '[ -z "$OUT" ]'
 teardown
+
+# --- cloudagent-skill.sh ----------------------------------------------------
+CASKILL="$(cd "$HERE/.." && pwd)/cloudagent-skill.sh"
+
+# In a Cloud Agent workspace (CLOUDAGENT_API_URL set): emits SessionStart context.
+OUT="$(printf '{}' | env CLOUDAGENT_API_URL=https://example bash "$CASKILL" 2>/dev/null)"
+ok "in workspace emits additionalContext" 'printf "%s" "$OUT" | jq -e ".hookSpecificOutput.additionalContext" >/dev/null'
+ok "context names the cloudagent skill"   'printf "%s" "$OUT" | jq -re ".hookSpecificOutput.additionalContext" | grep -q "cloudagent"'
+ok "hookEventName is SessionStart"        'printf "%s" "$OUT" | jq -e ".hookSpecificOutput.hookEventName==\"SessionStart\"" >/dev/null'
+
+# Kill switch wins even inside a workspace.
+OUT="$(printf '{}' | env CLOUDAGENT_API_URL=https://example CLOUDAGENT_SKILL_HOOK_DISABLE=1 bash "$CASKILL" 2>/dev/null)"
+ok "kill switch suppresses output"        '[ -z "$OUT" ]'
+
+# Outside a Cloud Agent workspace: no API URL and cloudagent not on PATH. Build a
+# minimal PATH (bash + jq only) so the cloudagent CLI is never found, regardless
+# of whether it is installed on the test machine.
+CABIN="$(mktemp -d)"
+ln -s "$(command -v bash)" "$CABIN/bash"
+ln -s "$(command -v jq)"   "$CABIN/jq"
+OUT="$(printf '{}' | env -i PATH="$CABIN" CLOUDAGENT_API_URL= bash "$CASKILL" 2>/dev/null)"
+ok "outside workspace is silent"          '[ -z "$OUT" ]'
+rm -rf "$CABIN"
 
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"

@@ -1,6 +1,9 @@
-# Idempotently add the night-handoff Stop / UserPromptSubmit hooks to settings.
+# Idempotently add our hooks to settings:
+#   - night-handoff Stop / UserPromptSubmit hooks
+#   - cloudagent-skill SessionStart hook
 # Args: --arg stop_cmd "<abs path> stop"  --arg touch_cmd "<abs path> touch"
-# Existing hooks for either event are preserved; our entry is added only if a
+#       --arg session_start_cmd "<abs path>"
+# Existing hooks for any event are preserved; our entry is added only if a
 # hook with the same command string is not already present.
 
 def has_cmd($event; $cmd):
@@ -15,3 +18,4 @@ def add_hook($event; $cmd):
 .hooks = (.hooks // {})
 | add_hook("Stop"; $stop_cmd)
 | add_hook("UserPromptSubmit"; $touch_cmd)
+| add_hook("SessionStart"; $session_start_cmd)
