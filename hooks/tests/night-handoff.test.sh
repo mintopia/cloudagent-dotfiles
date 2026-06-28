@@ -38,6 +38,19 @@ ok "touch creates lastinput marker" '[ -f "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput
 ok "touch is silent"                '[ -z "$OUT" ]'
 teardown
 
+# --- stop: trigger ----------------------------------------------------------
+# Use the full happy path (in-window + long unattended turn) so these stay green
+# as later tasks add the window / idle / cooldown guards.
+setup
+mkdir -p "$NIGHT_HANDOFF_STATE_DIR"
+touch -d "40 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"
+NIGHT_HANDOFF_NOW=2 run stop "$SID"
+ok "stop emits block decision"        'emits_block'
+ok "stop reason mentions handoff"     'printf "%s" "$OUT" | jq -re ".reason" | grep -qi handoff'
+ok "stop reason mentions /pickup"     'printf "%s" "$OUT" | jq -re ".reason" | grep -q "/pickup"'
+ok "stop writes handoff marker"       '[ -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
+teardown
+
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]

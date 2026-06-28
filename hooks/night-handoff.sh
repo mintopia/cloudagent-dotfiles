@@ -24,5 +24,26 @@ fi
 
 if [ "$event" != "stop" ]; then exit 0; fi
 
-# Stop-event decision logic added in later tasks.
+# --- Stop decision logic ---------------------------------------------------
+# Guards are inserted by later tasks at the ordered placeholders below.
+# [guard:killswitch]
+# [guard:loop]
+# [guard:window]
+# [guard:marker-idle]
+# [guard:cooldown]
+
+# Trigger: record the handoff marker first, then emit the block decision.
+touch "$handoff_file"
+
+reason=$(cat <<'EOF'
+A long-running turn just finished during the user's overnight window and they are likely away. Before stopping, create a handoff so they can resume cheaply in the morning:
+
+1. Invoke the `handoff` skill to write a handoff document capturing what was done, the current state, and the next steps.
+2. Then output a short, paste-ready resume prompt the user can run in a fresh session — prefer `/pickup`, and reference the handoff document's path.
+
+Keep it concise. Do NOT start any new work — only write the handoff and the resume prompt, then stop.
+EOF
+)
+
+jq -n --arg reason "$reason" '{decision: "block", reason: $reason}'
 exit 0
