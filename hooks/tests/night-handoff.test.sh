@@ -80,6 +80,29 @@ NIGHT_HANDOFF_NOW=2 run stop "$SID"
 ok "02:00 (inside window) still emits"   'emits_block'
 teardown
 
+# --- stop: missing marker + idle threshold ----------------------------------
+setup
+# In window, but no lastinput marker => never saw a user turn => silent.
+NIGHT_HANDOFF_NOW=2 run stop "$SID"
+ok "in-window without lastinput is silent" '[ -z "$OUT" ]'
+teardown
+
+setup
+mkdir -p "$NIGHT_HANDOFF_STATE_DIR"
+touch -d "2 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"   # short turn
+NIGHT_HANDOFF_NOW=2 run stop "$SID"
+ok "short turn in-window is silent"        '[ -z "$OUT" ]'
+ok "short turn writes no marker"           '[ ! -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
+teardown
+
+setup
+mkdir -p "$NIGHT_HANDOFF_STATE_DIR"
+touch -d "40 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"  # long turn
+NIGHT_HANDOFF_NOW=2 run stop "$SID"
+ok "long turn in-window emits block"       'emits_block'
+ok "long turn writes handoff marker"       '[ -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
+teardown
+
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]

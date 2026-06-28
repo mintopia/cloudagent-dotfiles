@@ -42,7 +42,14 @@ else
 fi
 hour="$((10#$hour))"   # strip any leading zero, force base-10
 if [ "$hour" -lt "$START" ] || [ "$hour" -ge "$END" ]; then exit 0; fi
-# [guard:marker-idle]
+# Missing marker: we never saw a user turn this session => not an unattended run.
+if [ ! -f "$lastinput_file" ]; then exit 0; fi
+
+# Short turn: now - mtime(lastinput) < IDLE_MIN minutes => user was active.
+IDLE_MIN="${NIGHT_HANDOFF_IDLE_MIN:-15}"
+now="$(date +%s)"
+last="$(date -r "$lastinput_file" +%s)"
+if [ "$(( now - last ))" -lt "$(( IDLE_MIN * 60 ))" ]; then exit 0; fi
 # [guard:cooldown]
 
 # Trigger: record the handoff marker first, then emit the block decision.
