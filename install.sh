@@ -9,6 +9,23 @@ ok()    { printf '\033[32m✔\033[0m %s\n' "$*"; }
 warn()  { printf '\033[33m⚠\033[0m %s\n' "$*"; }
 err()   { printf '\033[31m✘\033[0m %s\n' "$*" >&2; }
 
+# Atomically transform a JSON file with jq. The result is written to a temp file
+# and only moved over <target> if jq succeeds AND produced non-empty output —
+# so a jq error or empty result can never truncate the user's settings. Aborts
+# loudly (leaving <target> untouched) on failure.
+# Usage: jq_write <target> <jq args...>   (include the input file in the args)
+jq_write() {
+  local target="$1"; shift
+  local tmp; tmp=$(mktemp)
+  if jq "$@" > "$tmp" && [ -s "$tmp" ]; then
+    mv "$tmp" "$target"
+  else
+    rm -f "$tmp"
+    err "Failed to update $target via jq; left it unchanged"
+    exit 1
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Plugins
 # ---------------------------------------------------------------------------
@@ -113,9 +130,8 @@ info "Configuring Claude Code settings..."
 
 if [ -f "$CLAUDE_DIR/settings.json" ]; then
   # Merge dotfile settings into existing settings (dotfile values win)
-  tmp=$(mktemp)
-  jq -s '.[0] * .[1]' "$CLAUDE_DIR/settings.json" "$DOTFILES_DIR/config/settings.json" > "$tmp"
-  mv "$tmp" "$CLAUDE_DIR/settings.json"
+  jq_write "$CLAUDE_DIR/settings.json" \
+    -s '.[0] * .[1]' "$CLAUDE_DIR/settings.json" "$DOTFILES_DIR/config/settings.json"
   ok "Merged settings.json"
 else
   cp "$DOTFILES_DIR/config/settings.json" "$CLAUDE_DIR/settings.json"
@@ -125,11 +141,10 @@ fi
 # Wire the statusline into settings.json with the absolute installed path.
 # Done here (not in config/settings.json) because the path is machine-specific;
 # setting the key every run keeps it idempotent.
-tmp=$(mktemp)
-jq --arg cmd "$CLAUDE_DIR/statusline-command.sh" \
+jq_write "$CLAUDE_DIR/settings.json" \
+   --arg cmd "$CLAUDE_DIR/statusline-command.sh" \
    '.statusLine = {type: "command", command: $cmd}' \
-   "$CLAUDE_DIR/settings.json" > "$tmp"
-mv "$tmp" "$CLAUDE_DIR/settings.json"
+   "$CLAUDE_DIR/settings.json"
 ok "Wired statusline into settings.json"
 
 # ---------------------------------------------------------------------------
@@ -148,11 +163,10 @@ ok "Installed night-handoff.sh"
 # config/settings.json) and is safe to re-run.
 STOP_CMD="$HOOKS_DIR/night-handoff.sh stop"
 TOUCH_CMD="$HOOKS_DIR/night-handoff.sh touch"
-tmp=$(mktemp)
-jq --arg stop_cmd "$STOP_CMD" --arg touch_cmd "$TOUCH_CMD" \
+jq_write "$CLAUDE_DIR/settings.json" \
+   --arg stop_cmd "$STOP_CMD" --arg touch_cmd "$TOUCH_CMD" \
    -f "$DOTFILES_DIR/hooks/settings-hooks.jq" \
-   "$CLAUDE_DIR/settings.json" > "$tmp"
-mv "$tmp" "$CLAUDE_DIR/settings.json"
+   "$CLAUDE_DIR/settings.json"
 ok "Wired night-handoff hooks into settings.json"
 echo
 
