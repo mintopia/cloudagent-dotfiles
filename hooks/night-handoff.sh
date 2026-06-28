@@ -50,7 +50,12 @@ IDLE_MIN="${NIGHT_HANDOFF_IDLE_MIN:-15}"
 now="$(date +%s)"
 last="$(date -r "$lastinput_file" +%s)"
 if [ "$(( now - last ))" -lt "$(( IDLE_MIN * 60 ))" ]; then exit 0; fi
-# [guard:cooldown]
+# Cooldown: skip if a handoff was written within COOLDOWN_H hours this session.
+COOLDOWN_H="${NIGHT_HANDOFF_COOLDOWN_H:-6}"
+if [ -f "$handoff_file" ]; then
+  hdone="$(date -r "$handoff_file" +%s)"
+  if [ "$(( now - hdone ))" -lt "$(( COOLDOWN_H * 3600 ))" ]; then exit 0; fi
+fi
 
 # Trigger: record the handoff marker first, then emit the block decision.
 touch "$handoff_file"

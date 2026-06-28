@@ -103,6 +103,23 @@ ok "long turn in-window emits block"       'emits_block'
 ok "long turn writes handoff marker"       '[ -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
 teardown
 
+# --- stop: cooldown ---------------------------------------------------------
+setup
+mkdir -p "$NIGHT_HANDOFF_STATE_DIR"
+touch -d "40 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"  # long turn
+touch -d "1 hour ago"     "$NIGHT_HANDOFF_STATE_DIR/s1.handoff"    # handoff < 6h ago
+NIGHT_HANDOFF_NOW=2 run stop "$SID"
+ok "cooldown suppresses repeat handoff" '[ -z "$OUT" ]'
+teardown
+
+setup
+mkdir -p "$NIGHT_HANDOFF_STATE_DIR"
+touch -d "40 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"
+touch -d "8 hours ago"    "$NIGHT_HANDOFF_STATE_DIR/s1.handoff"    # handoff > 6h ago
+NIGHT_HANDOFF_NOW=2 run stop "$SID"
+ok "stale handoff allows a new handoff"  'emits_block'
+teardown
+
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]
