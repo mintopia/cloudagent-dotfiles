@@ -36,6 +36,7 @@ setup
 run touch "$SID"
 ok "touch creates lastinput marker" '[ -f "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput" ]'
 ok "touch is silent"                '[ -z "$OUT" ]'
+ok "touch exits 0"                  '[ "$RC" -eq 0 ]'
 teardown
 
 # --- stop: trigger ----------------------------------------------------------
@@ -134,6 +135,17 @@ EXISTING='{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"other.sh"}]}]
 OUT="$(printf '%s' "$EXISTING" | wire)"
 ok "preserves existing Stop hook" 'printf "%s" "$OUT" | jq -e "[.hooks.Stop[].hooks[].command]|index(\"other.sh\")" >/dev/null'
 ok "adds ours alongside existing" 'test "$(printf "%s" "$OUT" | jq "[.hooks.Stop[].hooks[].command]|length")" -eq 2'
+
+# --- stop: real TZ path (no NIGHT_HANDOFF_NOW) ------------------------------
+# Exercises the TZ="$TZ_NAME" date +%H + 10# path end-to-end. A closed window
+# (START==END) always lands outside, so the hook stays silent regardless of the
+# real UTC hour — proving the date-based hour was computed, not crashed.
+setup
+mkdir -p "$NIGHT_HANDOFF_STATE_DIR"
+touch -d "40 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"
+NIGHT_HANDOFF_TZ=UTC NIGHT_HANDOFF_START=0 NIGHT_HANDOFF_END=0 run stop "$SID"
+ok "real TZ path computes hour (closed window stays silent)" '[ -z "$OUT" ]'
+teardown
 
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"

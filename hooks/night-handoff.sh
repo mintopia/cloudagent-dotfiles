@@ -25,7 +25,7 @@ fi
 if [ "$event" != "stop" ]; then exit 0; fi
 
 # --- Stop decision logic ---------------------------------------------------
-# Guards are inserted by later tasks at the ordered placeholders below.
+# Guards run in order; each exits 0 to suppress the handoff.
 # Kill switch.
 if [ -n "${NIGHT_HANDOFF_DISABLE:-}" ]; then exit 0; fi
 # Loop guard: this Stop is the handoff's own turn ending — never recurse.
@@ -37,6 +37,7 @@ START="${NIGHT_HANDOFF_START:-1}"
 END="${NIGHT_HANDOFF_END:-9}"
 if [ -n "${NIGHT_HANDOFF_NOW:-}" ]; then
   hour="$NIGHT_HANDOFF_NOW"
+  if ! [[ "$hour" =~ ^[0-9]+$ ]]; then exit 0; fi
 else
   hour="$(TZ="$TZ_NAME" date +%H)"
 fi
