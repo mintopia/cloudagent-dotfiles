@@ -119,6 +119,7 @@ line of defence.
 | `NIGHT_HANDOFF_COOLDOWN_H` | `6` | No repeat handoff within this many hours per session. |
 | `NIGHT_HANDOFF_DISABLE` | _(unset)_ | Any non-empty value disables the hook. |
 | `NIGHT_HANDOFF_NOW` | _(unset)_ | Test seam: overrides "current hour" (0–23) for the window check. |
+| `NIGHT_HANDOFF_STATE_DIR` | `~/.claude/state/night-handoff` | Test seam: overrides the state directory. |
 
 The window check reads `NIGHT_HANDOFF_NOW` if set, otherwise
 `TZ="$NIGHT_HANDOFF_TZ" date +%H`. This makes the window branch unit-testable
