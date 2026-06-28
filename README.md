@@ -45,6 +45,38 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 - **Keybindings** — Shift+Enter for newline in chat.
 - **Decision memory** — ADR-based decision tracking appended to user `AGENTS.md`, teaching agents to search for and respect existing architecture decisions.
 
+## Night handoff hook
+
+`hooks/night-handoff.sh` watches for long-running turns that finish while you are
+asleep and forces Claude to leave a cheap resumption trail, so you don't pay for a
+cold full-context `/resume` in the morning.
+
+How it works:
+
+- A `UserPromptSubmit` hook stamps a per-session marker on every user turn.
+- A `Stop` hook measures how long the just-finished turn ran (`now − marker`). If
+  that turn ran longer than the idle threshold **and** it ended inside your
+  overnight window **and** no handoff was written recently, it returns a
+  `decision:block` instructing Claude to invoke the `handoff` skill and print a
+  paste-ready resume prompt (prefer `/pickup`).
+
+Because the measured "idle" is really the turn's duration, a long unattended run
+that finishes at 03:00 triggers a handoff, while you actively chatting at 02:00
+(short turns) does not. A per-session cooldown prevents repeats.
+
+Configuration (environment variables):
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `NIGHT_HANDOFF_TZ` | `Europe/London` | Timezone the window is measured in (DST-aware). |
+| `NIGHT_HANDOFF_START` | `1` | Window start hour, inclusive. |
+| `NIGHT_HANDOFF_END` | `9` | Window end hour, exclusive. |
+| `NIGHT_HANDOFF_IDLE_MIN` | `15` | Minimum turn duration (minutes) to count as "away". |
+| `NIGHT_HANDOFF_COOLDOWN_H` | `6` | No repeat handoff within this many hours per session. |
+| `NIGHT_HANDOFF_DISABLE` | _(unset)_ | Set to any value to disable the hook. |
+
+Run the tests with `bash hooks/tests/night-handoff.test.sh`.
+
 ## Structure
 
 ```
