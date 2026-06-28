@@ -26,7 +26,8 @@ if [ "$event" != "stop" ]; then exit 0; fi
 
 # --- Stop decision logic ---------------------------------------------------
 # Guards are inserted by later tasks at the ordered placeholders below.
-# [guard:killswitch]
+# Kill switch.
+if [ -n "${NIGHT_HANDOFF_DISABLE:-}" ]; then exit 0; fi
 # Loop guard: this Stop is the handoff's own turn ending — never recurse.
 stop_hook_active="$(printf '%s' "$input" | jq -r '.stop_hook_active // false')"
 if [ "$stop_hook_active" = "true" ]; then exit 0; fi

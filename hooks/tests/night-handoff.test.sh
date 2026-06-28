@@ -59,6 +59,13 @@ ok "stop_hook_active is silent"          '[ -z "$OUT" ]'
 ok "stop_hook_active writes no marker"   '[ ! -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
 teardown
 
+# --- stop: kill switch ------------------------------------------------------
+setup
+NIGHT_HANDOFF_DISABLE=1 run stop "$SID"
+ok "disabled stop is silent"        '[ -z "$OUT" ]'
+ok "disabled stop writes no marker" '[ ! -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
+teardown
+
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]
