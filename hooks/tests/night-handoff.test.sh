@@ -51,6 +51,14 @@ ok "stop reason mentions /pickup"     'printf "%s" "$OUT" | jq -re ".reason" | g
 ok "stop writes handoff marker"       '[ -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
 teardown
 
+# --- stop: loop guard -------------------------------------------------------
+setup
+ACTIVE='{"session_id":"s1","stop_hook_active":true}'
+run stop "$ACTIVE"
+ok "stop_hook_active is silent"          '[ -z "$OUT" ]'
+ok "stop_hook_active writes no marker"   '[ ! -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
+teardown
+
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]
