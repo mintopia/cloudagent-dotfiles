@@ -120,6 +120,21 @@ NIGHT_HANDOFF_NOW=2 run stop "$SID"
 ok "stale handoff allows a new handoff"  'emits_block'
 teardown
 
+# --- settings-hooks.jq ------------------------------------------------------
+wire() { jq --arg stop_cmd "HH stop" --arg touch_cmd "HH touch" -f "$FILTER"; }
+
+OUT="$(printf '{}' | wire)"
+ok "adds Stop command"          'printf "%s" "$OUT" | jq -e "[.hooks.Stop[].hooks[].command]|index(\"HH stop\")" >/dev/null'
+ok "adds UserPromptSubmit cmd"  'printf "%s" "$OUT" | jq -e "[.hooks.UserPromptSubmit[].hooks[].command]|index(\"HH touch\")" >/dev/null'
+
+OUT="$(printf '{}' | wire | wire)"
+ok "idempotent: no duplicate Stop" 'test "$(printf "%s" "$OUT" | jq "[.hooks.Stop[].hooks[].command]|map(select(.==\"HH stop\"))|length")" -eq 1'
+
+EXISTING='{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"other.sh"}]}]}}'
+OUT="$(printf '%s' "$EXISTING" | wire)"
+ok "preserves existing Stop hook" 'printf "%s" "$OUT" | jq -e "[.hooks.Stop[].hooks[].command]|index(\"other.sh\")" >/dev/null'
+ok "adds ours alongside existing" 'test "$(printf "%s" "$OUT" | jq "[.hooks.Stop[].hooks[].command]|length")" -eq 2'
+
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]
