@@ -31,7 +31,17 @@ if [ -n "${NIGHT_HANDOFF_DISABLE:-}" ]; then exit 0; fi
 # Loop guard: this Stop is the handoff's own turn ending — never recurse.
 stop_hook_active="$(printf '%s' "$input" | jq -r '.stop_hook_active // false')"
 if [ "$stop_hook_active" = "true" ]; then exit 0; fi
-# [guard:window]
+# Window check. NIGHT_HANDOFF_NOW overrides the current hour for tests.
+TZ_NAME="${NIGHT_HANDOFF_TZ:-Europe/London}"
+START="${NIGHT_HANDOFF_START:-1}"
+END="${NIGHT_HANDOFF_END:-9}"
+if [ -n "${NIGHT_HANDOFF_NOW:-}" ]; then
+  hour="$NIGHT_HANDOFF_NOW"
+else
+  hour="$(TZ="$TZ_NAME" date +%H)"
+fi
+hour="$((10#$hour))"   # strip any leading zero, force base-10
+if [ "$hour" -lt "$START" ] || [ "$hour" -ge "$END" ]; then exit 0; fi
 # [guard:marker-idle]
 # [guard:cooldown]
 

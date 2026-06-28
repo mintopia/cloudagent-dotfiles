@@ -66,6 +66,20 @@ ok "disabled stop is silent"        '[ -z "$OUT" ]'
 ok "disabled stop writes no marker" '[ ! -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
 teardown
 
+# --- stop: window guard -----------------------------------------------------
+setup
+NIGHT_HANDOFF_NOW=12 run stop "$SID"
+ok "noon (outside window) is silent"     '[ -z "$OUT" ]'
+ok "outside window writes no marker"     '[ ! -f "$NIGHT_HANDOFF_STATE_DIR/s1.handoff" ]'
+teardown
+
+setup
+mkdir -p "$NIGHT_HANDOFF_STATE_DIR"
+touch -d "40 minutes ago" "$NIGHT_HANDOFF_STATE_DIR/s1.lastinput"
+NIGHT_HANDOFF_NOW=2 run stop "$SID"
+ok "02:00 (inside window) still emits"   'emits_block'
+teardown
+
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]
