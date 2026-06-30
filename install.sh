@@ -228,8 +228,14 @@ for skill_dir in "$DOTFILES_DIR"/skills/*/; do
   INSTALLED_SKILLS+=("$skill_name")
 done
 
-# mattpocock/skills — featured skills via npx
-MATT_SKILLS="handoff improve-codebase-architecture prototype tdd to-issues to-prd"
+# mattpocock/skills — the full engineering + productivity categories via npx.
+# (setup-matt-pocock-skills is omitted: it is the upstream installer meta-skill,
+# redundant with this script.)
+MATT_ENGINEERING="ask-matt codebase-design diagnosing-bugs domain-modeling \
+grill-with-docs implement improve-codebase-architecture prototype \
+resolving-merge-conflicts tdd to-issues to-prd triage"
+MATT_PRODUCTIVITY="grill-me grilling handoff teach writing-great-skills"
+MATT_SKILLS="$MATT_ENGINEERING $MATT_PRODUCTIVITY"
 info "Installing mattpocock/skills: $MATT_SKILLS"
 if npx -y skills add mattpocock/skills \
     --skill $MATT_SKILLS \
@@ -262,7 +268,7 @@ echo "Installed:"
 echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
 echo "  Skills:      $skills_joined"
-echo "  Skills (mp): handoff, improve-codebase-architecture, prototype, tdd, to-issues, to-prd"
+echo "  Skills (mp): engineering + productivity categories ($(printf '%s' "$MATT_SKILLS" | wc -w) skills)"
 echo "  Hooks:       night-handoff (overnight handoff), cloudagent-skill (session-start)"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
