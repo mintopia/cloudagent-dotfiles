@@ -61,10 +61,15 @@ fi
 # Trigger: record the handoff marker first, then emit the block decision.
 touch "$handoff_file"
 
+# NOTE: the instructions are inlined here rather than delegating to the `handoff`
+# skill. Matt Pocock's `handoff` skill sets `disable-model-invocation: true`, so
+# the model cannot invoke it from this Stop hook — the block would never be
+# satisfied. Keeping the steps self-contained makes the hook independent of any
+# skill's invocation policy.
 reason=$(cat <<'EOF'
-A long-running turn just finished during the user's overnight window and they are likely away. Before stopping, create a handoff so they can resume cheaply in the morning:
+A long-running turn just finished during the user's overnight window and they are likely away. Before stopping, write a handoff so they can resume cheaply in the morning. Do this directly — do NOT rely on the `handoff` skill (it is user-invocable only and cannot be triggered from here).
 
-1. Invoke the `handoff` skill to write a handoff document capturing what was done, the current state, and the next steps.
+1. Write a handoff document to your OS temporary directory (not the workspace). Capture: what was done this turn, the current state, and the concrete next steps. Add a short "suggested skills" section. Reference existing artifacts (PRDs, plans, ADRs, issues, commits, diffs) by path or URL instead of duplicating them. Redact anything sensitive (keys, passwords, PII).
 2. Then output a short, paste-ready resume prompt the user can run in a fresh session — prefer `/pickup`, and reference the handoff document's path.
 
 Keep it concise. Do NOT start any new work — only write the handoff and the resume prompt, then stop.

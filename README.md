@@ -59,8 +59,13 @@ How it works:
 - A `Stop` hook measures how long the just-finished turn ran (`now − marker`). If
   that turn ran longer than the idle threshold **and** it ended inside your
   overnight window **and** no handoff was written recently, it returns a
-  `decision:block` instructing Claude to invoke the `handoff` skill and print a
+  `decision:block` instructing Claude to write a handoff document and print a
   paste-ready resume prompt (prefer `/pickup`).
+
+The handoff instructions are inlined in the hook rather than delegating to Matt
+Pocock's `handoff` skill: that skill sets `disable-model-invocation: true`, so a
+`Stop` hook cannot make the model invoke it. Keeping the steps self-contained
+makes the hook independent of any skill's invocation policy.
 
 Because the measured "idle" is really the turn's duration, a long unattended run
 that finishes at 03:00 triggers a handoff, while you actively chatting at 02:00
