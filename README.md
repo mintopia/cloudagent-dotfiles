@@ -27,7 +27,7 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 ### Skills
 
 - **adr** — Architecture Decision Record enforcement and creation. Hard-blocks on conflicting ADRs, sequential numbering, `/adr` command for interactive creation.
-- **caveman** (+ family) — Ultra-compressed communication mode (`/caveman`). Cuts output tokens ~75% by dropping articles, filler, and pleasantries while keeping full technical accuracy, with `lite`/`full`/`ultra` (and wenyan) intensity levels. The full family is vendored: `caveman-commit` (terse commit messages), `caveman-review` (terse PR feedback), `caveman-compress` (compress CLAUDE.md/memory files, script-backed), `caveman-stats` (session token usage + savings), `cavecrew` (delegating to caveman subagents), and `caveman-help` (reference card). Vendored verbatim from [Julius Brussee's caveman](https://github.com/JuliusBrussee/caveman) (MIT).
+- **caveman** (+ family) — Ultra-compressed communication mode (`/caveman`). Cuts output tokens ~75% by dropping articles, filler, and pleasantries while keeping full technical accuracy, with `lite`/`full`/`ultra` (and wenyan) intensity levels. The full family is installed: `caveman-commit` (terse commit messages), `caveman-review` (terse PR feedback), `caveman-compress` (compress CLAUDE.md/memory files, script-backed), `caveman-stats` (session token usage + savings), `cavecrew` (delegating to caveman subagents), and `caveman-help` (reference card). Installed via `npx skills add` from [Julius Brussee's caveman](https://github.com/JuliusBrussee/caveman) (MIT).
 - **cloudagent** — Complete `cloudagent` CLI reference and workspace conventions. Covers file/URL presentation (`open-file`, `open-url`), HTTP forwards for web servers, notifications, visual companion setup (including the critical WSS patch), and kanban ticket management (full reference in `references/kanban.md` for progressive disclosure).
 - **codex-review** — Standalone adversarial plan-review loop. Claude drafts a plan into `PLAN.md`, OpenAI Codex critiques it read-only across rounds (`VERDICT:APPROVED`/`REVISE`) until it converges or hits a round cap. `/codex-review` for when you already have a plan and just want the cross-model stress-test.
 - **deep-analysis** — Explicitly-invoked depth harness (`/deep-analysis`) that runs a diverge → refute → converge loop with fresh-context adversarial sub-agents, killing weak directions on majority-refute with Claude as final arbiter. For high-stakes design, architecture, and tradeoff calls where getting it right beats getting it fast.
@@ -35,7 +35,7 @@ The script is idempotent — safe to run multiple times. Restart Claude Code aft
 - **grill-with-docs-codex** — `grill-me-codex` plus living documentation (`/grill-with-docs-codex`). Act 1 challenges your plan against `CONTEXT.md`/ADRs and updates them inline as decisions crystallise; Act 2 is the Codex review loop. Builds on Matt Pocock's `grill-with-docs` (MIT).
 - **local-llm-development** — Delegates implementation to a local LLM (LM Studio) while Claude orchestrates and reviews — a third execution option alongside sequential/parallel Claude subagents. Bundles an `llm-proxy.sh`, tool schemas, and an implementer prompt.
 - **pickup** — Lightweight session recap (`/pickup`, or "where were we?") that reconstructs context from durable artifacts (session JSONL, git state, memory) instead of replaying the full conversation like `/resume`. Includes `scripts/extract_session.py`.
-- **ponytail** (+ family) — Laziest-solution-that-works mode (`/ponytail`). Channels a senior dev enforcing YAGNI, stdlib-before-custom, native-before-dependency, and shortest-working-diff, with `lite`/`full`/`ultra` intensity levels. The full family is vendored: `ponytail-review` (review for over-engineering), `ponytail-audit` (whole-repo over-engineering scan), `ponytail-debt` (harvest `ponytail:` comments into a debt ledger), `ponytail-gain` (impact scoreboard), and `ponytail-help` (reference card). Pairs with **caveman** for terse prose. Vendored verbatim from [DietrichGebert's ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
+- **ponytail** (+ family) — Laziest-solution-that-works mode (`/ponytail`). Channels a senior dev enforcing YAGNI, stdlib-before-custom, native-before-dependency, and shortest-working-diff, with `lite`/`full`/`ultra` intensity levels. The full family is installed: `ponytail-review` (review for over-engineering), `ponytail-audit` (whole-repo over-engineering scan), `ponytail-debt` (harvest `ponytail:` comments into a debt ledger), `ponytail-gain` (impact scoreboard), and `ponytail-help` (reference card). Pairs with **caveman** for terse prose. Installed via `npx skills add` from [DietrichGebert's ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 - **quality-gate** — Enforces that all test, lint, and quality check failures are fixed before work is considered complete. Prevents Claude from dismissing failures as "unrelated" or "pre-existing". If the suite is red, it gets fixed.
 - **subagent-finder** — Searches the [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) catalog (150+ agents) to find specialist subagents without loading them all into context. Includes `/subagents` command to scan a project's tech stack, recommend matching agents, and install them to `.claude/agents/`.
 
@@ -118,16 +118,6 @@ Tests live alongside the night-handoff tests: `bash hooks/tests/night-handoff.te
 │   └── agents-append.md                    # Decision memory (appended to ~/.claude/AGENTS.md)
 ├── skills/
 │   ├── adr/SKILL.md                        # ADR enforcement and /adr command
-│   ├── caveman/SKILL.md                    # /caveman token-compressed responses
-│   ├── caveman-commit/SKILL.md             # Terse commit messages
-│   ├── caveman-compress/                   # Compress CLAUDE.md/memory files
-│   │   ├── SKILL.md
-│   │   └── scripts/                        # Python compressor (cli/compress/detect/...)
-│   ├── caveman-help/SKILL.md               # Caveman reference card
-│   ├── caveman-review/SKILL.md             # Terse PR review comments
-│   ├── caveman-stats/SKILL.md              # Session token usage + savings
-│   ├── cavecrew/SKILL.md                   # Delegating to caveman subagents
-│   │                                       #   (caveman family vendored from JuliusBrussee/caveman, MIT)
 │   ├── cloudagent/
 │   │   ├── SKILL.md                        # CLI reference and workspace conventions
 │   │   └── references/kanban.md            # Full kanban ticket system reference
@@ -141,13 +131,6 @@ Tests live alongside the night-handoff tests: `bash hooks/tests/night-handoff.te
 │   ├── pickup/
 │   │   ├── SKILL.md                        # /pickup session recap from artifacts
 │   │   └── scripts/extract_session.py      # Session JSONL extractor
-│   ├── ponytail/SKILL.md                   # /ponytail laziest-solution-that-works mode
-│   ├── ponytail-audit/SKILL.md             # Whole-repo over-engineering scan
-│   ├── ponytail-debt/SKILL.md              # Harvest ponytail: comments into a ledger
-│   ├── ponytail-gain/SKILL.md              # Impact scoreboard
-│   ├── ponytail-help/SKILL.md              # Ponytail reference card
-│   ├── ponytail-review/SKILL.md            # Review for over-engineering
-│   │                                       #   (ponytail family vendored from DietrichGebert/ponytail, MIT)
 │   ├── quality-gate/SKILL.md               # Enforce fixing all test/lint failures
 │   └── subagent-finder/
 │       ├── SKILL.md                        # Agent search and /subagents command

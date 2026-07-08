@@ -246,6 +246,24 @@ else
 fi
 echo
 
+# Third-party skill families installed via npx (previously vendored verbatim).
+# caveman (Julius Brussee) and ponytail (DietrichGebert), both MIT. The whole
+# family is pulled from each repo — no --skill filter.
+declare -A THIRDPARTY_SKILLS=(
+  [JuliusBrussee/caveman]="caveman family"
+  [DietrichGebert/ponytail]="ponytail family"
+)
+for repo in "${!THIRDPARTY_SKILLS[@]}"; do
+  label="${THIRDPARTY_SKILLS[$repo]}"
+  info "Installing $repo ($label)..."
+  if npx -y skills add "$repo" -g -y --copy; then
+    ok "Installed $repo"
+  else
+    err "Failed to install $repo"
+  fi
+done
+echo
+
 # ---------------------------------------------------------------------------
 # Git
 # ---------------------------------------------------------------------------
@@ -269,6 +287,7 @@ echo "  Plugins:     superpowers, impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): engineering + productivity categories ($(printf '%s' "$MATT_SKILLS" | wc -w) skills)"
+echo "  Skills (3p): caveman family, ponytail family (via npx skills)"
 echo "  Hooks:       night-handoff (overnight handoff), cloudagent-skill (session-start)"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
