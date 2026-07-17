@@ -9,6 +9,27 @@ ok()    { printf '\033[32m✔\033[0m %s\n' "$*"; }
 warn()  { printf '\033[33m⚠\033[0m %s\n' "$*"; }
 err()   { printf '\033[31m✘\033[0m %s\n' "$*" >&2; }
 
+usage() {
+  cat <<'EOF'
+Usage: ./install.sh [--cleanup]
+
+  --cleanup   Also purge components these dotfiles used to install but have
+              since dropped (see the DEPRECATED_* lists in this script).
+              Off by default: a plain run only adds and updates, never removes.
+  -h, --help  Show this help.
+EOF
+}
+
+CLEANUP=false
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --cleanup)  CLEANUP=true ;;
+    -h|--help)  usage; exit 0 ;;
+    *)          err "Unknown option: $1"; echo; usage; exit 1 ;;
+  esac
+  shift
+done
+
 # Atomically transform a JSON file with jq. The result is written to a temp file
 # and only moved over <target> if jq succeeds AND produced non-empty output —
 # so a jq error or empty result can never truncate the user's settings. Aborts
@@ -24,6 +45,103 @@ jq_write() {
     err "Failed to update $target via jq; left it unchanged"
     exit 1
   fi
+}
+
+# ---------------------------------------------------------------------------
+# Cleanup (--cleanup)
+# ---------------------------------------------------------------------------
+
+# Components these dotfiles once installed but have since dropped. Retiring
+# something in future means adding one line to the relevant list here.
+DEPRECATED_PLUGINS=(
+  "superpowers@claude-plugins-official"
+)
+DEPRECATED_MARKETPLACES=(
+  "superpowers-marketplace"
+)
+DEPRECATED_SKILLS=(
+  "local-llm-development"
+)
+
+# Entries must be fully qualified (plugin@marketplace) so the cache path below
+# can be derived unambiguously.
+remove_plugin() {
+  local plugin="$1"
+  case "$plugin" in
+    *@*) ;;
+    *)   err "Expected plugin@marketplace, got: '$plugin'"; return ;;
+  esac
+  local name="${plugin%@*}" marketplace="${plugin##*@}"
+  case "$name$marketplace" in
+    *[/[:space:]]*|'') err "Refusing unsafe plugin spec: '$plugin'"; return ;;
+  esac
+
+  if claude plugin list 2>/dev/null | grep -q "$plugin"; then
+    info "Uninstalling plugin: $plugin"
+    if claude plugin uninstall "$plugin"; then
+      ok "Uninstalled: $plugin"
+    else
+      err "Failed to uninstall plugin: $plugin"
+    fi
+  else
+    ok "Plugin not installed: $plugin"
+  fi
+
+  # `claude plugin uninstall` clears the registry entry and the data dir but
+  # leaves the downloaded plugin in the marketplace cache — megabytes per plugin,
+  # for something we are never reinstalling. Best-effort by design: the cache is
+  # regenerable, so if the layout ever changes this silently does nothing rather
+  # than failing the run. The marketplace itself is left alone; other plugins
+  # usually still need it.
+  local cache="$CLAUDE_DIR/plugins/cache/$marketplace/$name"
+  if [ -d "$cache" ]; then
+    rm -rf "$cache"
+    ok "Purged plugin cache: $marketplace/$name"
+  fi
+}
+
+remove_marketplace() {
+  local name="$1"
+  if ! claude plugin marketplace list 2>/dev/null | grep -q "$name"; then
+    ok "Marketplace not configured: $name"
+    return
+  fi
+  info "Removing marketplace: $name"
+  if claude plugin marketplace remove "$name"; then
+    ok "Removed marketplace: $name"
+  else
+    err "Failed to remove marketplace: $name"
+  fi
+}
+
+# Delete an installed skill directory (or symlink) from ~/.claude/skills.
+# The name is validated first: an empty or path-bearing entry would otherwise
+# let `rm -rf` escape the skill directory it is meant to be confined to.
+remove_skill() {
+  local name="$1"
+  case "$name" in
+    ''|.|..|*/*)
+      err "Refusing to remove unsafe skill name: '$name'"
+      return
+      ;;
+  esac
+  local target="$CLAUDE_DIR/skills/$name"
+  if [ ! -e "$target" ] && [ ! -L "$target" ]; then
+    ok "Skill not installed: $name"
+    return
+  fi
+  info "Removing skill: $name"
+  rm -rf "$target"
+  ok "Removed skill: $name"
+}
+
+run_cleanup() {
+  info "Purging deprecated components..."
+  local item
+  for item in "${DEPRECATED_PLUGINS[@]}";      do remove_plugin "$item";      done
+  for item in "${DEPRECATED_MARKETPLACES[@]}"; do remove_marketplace "$item"; done
+  for item in "${DEPRECATED_SKILLS[@]}";       do remove_skill "$item";       done
+  echo
 }
 
 # ---------------------------------------------------------------------------
@@ -61,6 +179,11 @@ add_marketplace() {
 info "Setting up Cloud Agent dotfiles..."
 echo
 
+# Purge before installing, so a removal can never race a fresh install.
+if [ "$CLEANUP" = true ]; then
+  run_cleanup
+fi
+
 # --- Marketplaces -----------------------------------------------------------
 info "Configuring plugin marketplaces..."
 add_marketplace "pbakaus/impeccable"    "impeccable"
@@ -69,7 +192,6 @@ echo
 
 # --- Plugins ----------------------------------------------------------------
 info "Installing plugins..."
-install_plugin "superpowers"   "claude-plugins-official"
 install_plugin "impeccable"    "impeccable"
 install_plugin "context-mode"  "context-mode"
 echo
@@ -283,7 +405,7 @@ echo
 # Join the collected skill names as "a, b, c" (derived, never drifts).
 skills_joined=$(printf ', %s' "${INSTALLED_SKILLS[@]}"); skills_joined=${skills_joined:2}
 echo "Installed:"
-echo "  Plugins:     superpowers, impeccable, context-mode"
+echo "  Plugins:     impeccable, context-mode"
 echo "  MCP servers: jcodemunch"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): engineering + productivity categories ($(printf '%s' "$MATT_SKILLS" | wc -w) skills)"
@@ -294,5 +416,14 @@ echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"
 echo "  AGENTS.md:   decision memory layer"
 echo "  Git:         Jessica Smith <jess@mintopia.net>"
+# Derived from the DEPRECATED_* lists rather than hand-maintained, so the
+# summary tracks the lists automatically.
+if [ "$CLEANUP" = true ]; then
+  purged_joined=$(printf ', %s' \
+    "${DEPRECATED_PLUGINS[@]}" "${DEPRECATED_MARKETPLACES[@]}" "${DEPRECATED_SKILLS[@]}")
+  echo
+  echo "Purged (--cleanup):"
+  echo "  ${purged_joined:2}"
+fi
 echo
 echo "Restart Claude Code for all changes to take effect."
