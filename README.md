@@ -27,8 +27,8 @@ near the top of `install.sh`, then continues with the normal install. It is safe
 to re-run: anything already gone is reported and skipped. Retiring something in
 future is a one-line addition to the relevant array.
 
-Currently retired: the **superpowers** plugin and its marketplace, and the
-**local-llm-development** skill.
+Currently retired: the **superpowers** plugin and the **local-llm-development**
+skill.
 
 ## What It Does
 

@@ -56,9 +56,10 @@ jq_write() {
 DEPRECATED_PLUGINS=(
   "superpowers@claude-plugins-official"
 )
-DEPRECATED_MARKETPLACES=(
-  "superpowers-marketplace"
-)
+# Empty: superpowers came from claude-plugins-official, which is shared with
+# other installed plugins and must stay. Only add a marketplace here if this
+# script added it and nothing else needs it.
+DEPRECATED_MARKETPLACES=()
 DEPRECATED_SKILLS=(
   "local-llm-development"
 )
