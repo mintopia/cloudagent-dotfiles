@@ -5,11 +5,9 @@ description: >
   workspaces. Use this skill whenever you are in a Cloud Agent environment
   (detectable by the `cloudagent` CLI or CLOUDAGENT_API_URL env var). Covers
   presenting files and URLs to the user, exposing web servers with TLS, sending
-  notifications, workspace info, kanban ticket management, and configuring tools
-  like the superpowers visual companion. Use before opening any file or URL for
-  the user, before starting any web server the user should access, before sending
-  notifications, before working with kanban tickets, and before setting up the
-  visual companion.
+  notifications, workspace info, and kanban ticket management. Use before opening
+  any file or URL for the user, before starting any web server the user should
+  access, before sending notifications, and before working with kanban tickets.
 ---
 
 # Cloud Agent Workspace Guide
@@ -87,54 +85,16 @@ cloudagent ports list --json
 cloudagent ports remove <forward-id>
 ```
 
-## Superpowers visual companion
+### WebSockets behind an HTTP forward
 
-The visual companion needs three Cloud Agent-specific adaptations. All three are
-required or the companion will break.
+An HTTP forward terminates TLS, so the browser sees an HTTPS page. Browsers block
+mixed-content `ws://` connections from HTTPS pages, so any server you expose this
+way must use `wss://` for its WebSocket URL. A `ws://` URL fails silently — the
+page loads and only the live/interactive parts are dead, with nothing in the
+server log to show for it.
 
-### 1. Bind to 0.0.0.0
-
-The start script defaults to `127.0.0.1`, which the HTTP forward proxy cannot
-reach:
-
-```bash
-start-server.sh --project-dir <project-dir> --host 0.0.0.0 --url-host localhost
-```
-
-### 2. Create an HTTP forward
-
-After the server starts and reports its port:
-
-```bash
-cloudagent http-forwards add --container <port> --hostname visual-companion --json
-```
-
-Capture the `url` field from the JSON response.
-
-### 3. Patch ws:// to wss:// in helper.js
-
-The HTTP forward terminates TLS, so the browser sees an HTTPS page. Browsers
-block mixed-content `ws://` connections from HTTPS pages, which means the
-companion's live-reload and click-tracking WebSocket will silently fail.
-
-Find `helper.js` in the superpowers brainstorming scripts directory and replace:
-
-```
-# Line 2 — change this:
-const WS_URL = 'ws://' + window.location.host;
-
-# To this:
-const WS_URL = 'wss://' + window.location.host;
-```
-
-This is the single most important step — without it the companion appears to load
-but all interactivity (click selections, live reloads) is silently broken.
-
-### 4. Send the URL to the user
-
-```bash
-cloudagent open-url <https-url> --title "Visual Companion"
-```
+Servers that bind `127.0.0.1` by default also need `--host 0.0.0.0` (or the
+equivalent), since the forward proxy cannot reach the loopback interface.
 
 ## Workspace info
 

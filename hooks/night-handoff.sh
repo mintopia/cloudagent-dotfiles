@@ -3,7 +3,7 @@
 # Usage: night-handoff.sh touch   (wired to the UserPromptSubmit hook)
 #        night-handoff.sh stop    (wired to the Stop hook)
 # Reads the hook event JSON on stdin.
-# See docs/superpowers/specs/2026-06-28-night-handoff-hook-design.md
+# See the "Night handoff hook" section of README.md for the design rationale.
 set -euo pipefail
 
 STATE_DIR="${NIGHT_HANDOFF_STATE_DIR:-$HOME/.claude/state/night-handoff}"
