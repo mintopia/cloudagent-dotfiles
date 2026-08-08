@@ -232,6 +232,14 @@ background daemon (`~/.harmonic`), listens on 4700, binds `0.0.0.0`.
   the auth boundary. Binding `0.0.0.0` is required for the forward.
 - **README + summary + ADR 0010.**
 
+### E. Gate cloudagent-specific components on workspace detection
+
+The vendored `cloudagent` skill, the `cloudagent-skill` + `harmonic-start` hooks,
+and the Harmonic warm-up install only when a Cloud Agent workspace is detected at
+install time (`cloudagent` CLI on `PATH` or `CLOUDAGENT_API_URL`), via an
+`IS_CLOUDAGENT` flag in `install.sh`. Everything else installs regardless. See
+ADR 0011.
+
 ### ADRs (amendment)
 
 - 0007: move impeccable from plugin to npx skill (context-mode stays a plugin).
@@ -239,3 +247,5 @@ background daemon (`~/.harmonic`), listens on 4700, binds `0.0.0.0`.
 - 0009: install the ADHD output style as a native output style (file +
   `outputStyle` setting), not a hook.
 - 0010: auto-start Harmonic via a SessionStart hook + private HTTPS forward.
+- 0011: install cloudagent-specific components (cloudagent skill, hooks,
+  Harmonic) only when a Cloud Agent workspace is detected.
