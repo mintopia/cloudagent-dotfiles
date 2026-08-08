@@ -375,30 +375,23 @@ for skill_dir in "$DOTFILES_DIR"/skills/*/; do
   INSTALLED_SKILLS+=("$skill_name")
 done
 
-# mattpocock/skills — the full engineering + productivity categories via npx.
-# (setup-matt-pocock-skills is omitted: it is the upstream installer meta-skill,
-# redundant with this script.)
-MATT_ENGINEERING="ask-matt codebase-design diagnosing-bugs domain-modeling \
-grill-with-docs implement improve-codebase-architecture prototype \
-resolving-merge-conflicts tdd to-issues to-prd triage"
-MATT_PRODUCTIVITY="grill-me grilling handoff teach writing-great-skills"
-MATT_SKILLS="$MATT_ENGINEERING $MATT_PRODUCTIVITY"
-info "Installing mattpocock/skills: $MATT_SKILLS"
-if npx -y skills add mattpocock/skills \
-    --skill $MATT_SKILLS \
-    -g -y --copy; then
-  ok "Installed mattpocock/skills"
+# mattpocock/skills — install ALL skills. (mattpocock-skills also exists as a
+# plugin in claude-plugins-official, but the npx-where-possible rule keeps it
+# on npx.)
+info "Installing all mattpocock/skills..."
+if npx -y skills add mattpocock/skills --skill '*' -g -y --copy; then
+  ok "Installed mattpocock/skills (all)"
 else
   err "Failed to install mattpocock/skills"
 fi
 echo
 
 # Third-party skill families installed via npx (previously vendored verbatim).
-# caveman (Julius Brussee) and ponytail (DietrichGebert), both MIT. The whole
-# family is pulled from each repo — no --skill filter.
+# ponytail (DietrichGebert) and tsmura grill/codex. The whole family is pulled
+# from each repo — no --skill filter.
 declare -A THIRDPARTY_SKILLS=(
-  [JuliusBrussee/caveman]="caveman family"
   [DietrichGebert/ponytail]="ponytail family"
+  [tsmura/grill-me-codex]="grill + codex-plan-review family"
 )
 for repo in "${!THIRDPARTY_SKILLS[@]}"; do
   label="${THIRDPARTY_SKILLS[$repo]}"
@@ -430,11 +423,12 @@ echo
 # Join the collected skill names as "a, b, c" (derived, never drifts).
 skills_joined=$(printf ', %s' "${INSTALLED_SKILLS[@]}"); skills_joined=${skills_joined:2}
 echo "Installed:"
-echo "  Plugins:     impeccable, context-mode"
+echo "  Plugins:     impeccable, context-mode, frontend-design"
 echo "  MCP servers: jcodemunch"
+echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
-echo "  Skills (mp): engineering + productivity categories ($(printf '%s' "$MATT_SKILLS" | wc -w) skills)"
-echo "  Skills (3p): caveman family, ponytail family (via npx skills)"
+echo "  Skills (mp): all mattpocock/skills"
+echo "  Skills (3p): ponytail family, tsmura grill/codex family (via npx skills)"
 echo "  Hooks:       night-handoff (overnight handoff), cloudagent-skill (session-start)"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
