@@ -5,9 +5,8 @@ description: >
   workspaces. Use this skill whenever you are in a Cloud Agent environment
   (detectable by the `cloudagent` CLI or CLOUDAGENT_API_URL env var). Covers
   presenting files and URLs to the user, exposing web servers with TLS, sending
-  notifications, workspace info, and kanban ticket management. Use before opening
-  any file or URL for the user, before starting any web server the user should
-  access, before sending notifications, and before working with kanban tickets.
+  notifications, and workspace info. Use before opening any file or URL for the user,
+  before starting any web server the user should access, and before sending notifications.
 ---
 
 # Cloud Agent Workspace Guide
@@ -102,20 +101,4 @@ equivalent), since the forward proxy cannot reach the loopback interface.
 cloudagent workspace info --json         # name, slug, status
 cloudagent workspace network --json      # network configuration
 cloudagent workspace permissions --json  # allowed API operations
-```
-
-## Kanban ticket system
-
-The CLI includes a full kanban system for task tracking. Read
-`references/kanban.md` for the complete reference when you need to work with
-boards, tickets, comments, attachments, labels, statuses, types, or custom fields.
-
-### Quick reference
-
-```bash
-cloudagent boards list --json
-cloudagent tickets list --board <board-id> --json
-cloudagent tickets create --board <board-id> --title "Fix login bug" --json
-cloudagent tickets update <ticket-id> --status <status-slug> --json
-cloudagent tickets comments add <ticket-id> --body "Fixed in commit abc123"
 ```
