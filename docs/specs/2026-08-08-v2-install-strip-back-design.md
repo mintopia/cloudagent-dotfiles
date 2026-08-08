@@ -69,6 +69,7 @@ it.)
 | `grill-me-codex` (vendored) | vendored custom skill | re-sourced from tsmura |
 | `grill-with-docs-codex` (vendored) | vendored custom skill | re-sourced from tsmura |
 | Matt Pocock `--skill` filter | curated 18 | all skills |
+| cloudagent kanban system | in cloudagent SKILL.md + references/kanban.md | removed from the skill |
 
 ### Added
 - `frontend-design` plugin.

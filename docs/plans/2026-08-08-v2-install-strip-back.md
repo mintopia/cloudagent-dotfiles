@@ -303,6 +303,7 @@ Under a new heading or the MCP section, add:
 - Update the ponytail bullet to keep it (unchanged), and note caveman is gone.
 - Add a note that `npx skills find` is the built-in skill discovery tool.
 - Change the Matt Pocock description to "all skills" instead of the curated categories.
+- Remove kanban references: drop "kanban ticket management" from the cloudagent bullet and remove the `references/kanban.md` line from the Structure tree (the cloudagent skill dropped kanban in commit dc3f2c6).
 
 - [ ] **Step 4: Update "Currently retired"**
 
