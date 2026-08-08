@@ -62,6 +62,16 @@ DEPRECATED_PLUGINS=(
 DEPRECATED_MARKETPLACES=()
 DEPRECATED_SKILLS=(
   "local-llm-development"
+  "quality-gate"
+  # caveman family (dropped in v2) — confirmed via
+  # `npx skills add JuliusBrussee/caveman --list`
+  "caveman"
+  "caveman-commit"
+  "caveman-review"
+  "caveman-compress"
+  "caveman-stats"
+  "cavecrew"
+  "caveman-help"
 )
 
 # Entries must be fully qualified (plugin@marketplace) so the cache path below
