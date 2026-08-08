@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Tests for the SessionStart hook and settings-hooks.jq:
-#   - settings-hooks.jq   (wires the cloudagent-skill SessionStart hook)
+# Tests for the SessionStart hooks and settings-hooks.jq:
+#   - settings-hooks.jq   (wires the cloudagent-skill + harmonic-start hooks)
 #   - cloudagent-skill.sh (loads the cloudagent skill in a workspace)
+#   - harmonic-start.sh   (starts Harmonic + ensures its private forward)
 # Run: bash hooks/tests/hooks.test.sh
 set -uo pipefail
 
@@ -72,6 +73,49 @@ OUT="$(printf '{}' | env -i PATH="$HBIN" CLOUDAGENT_API_URL= bash "$HARM" 2>/dev
 ok "harmonic outside workspace is silent" '[ -z "$OUT" ]'
 ok "harmonic outside workspace exits 0"   '[ "$RC" -eq 0 ]'
 rm -rf "$HBIN"
+
+# Forward reconciliation against the REAL `http-forwards list --json` schema
+# ({"data":[...]}). Stub `cloudagent` and `npx` on PATH (real jq/bash used); the
+# add-stub records that it was called so we can assert dedup behaviour.
+STUB="$(mktemp -d)"
+cat > "$STUB/npx" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$STUB/cloudagent" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "http-forwards" ] && [ "$2" = "list" ]; then
+  cat "$HARMONIC_TEST_LIST"
+elif [ "$1" = "http-forwards" ] && [ "$2" = "add" ]; then
+  : > "$HARMONIC_TEST_ADD_CALLED"
+  printf '%s' "$HARMONIC_TEST_ADD_OUT"
+fi
+EOF
+chmod +x "$STUB/npx" "$STUB/cloudagent"
+
+# Case A: a `harmonic` forward already exists → hook emits its URL and does NOT add.
+LIST_A="$STUB/list_a.json"
+printf '%s' '{"data":[{"id":1,"hostname":"other","url":"https://other.ws"},{"id":2,"hostname":"harmonic","url":"https://harmonic.existing.ws"}]}' > "$LIST_A"
+ADD_MARK="$STUB/add_called"; rm -f "$ADD_MARK"
+OUT="$(printf '{}' | env PATH="$STUB:$PATH" CLOUDAGENT_API_URL=https://example \
+  HARMONIC_TEST_LIST="$LIST_A" HARMONIC_TEST_ADD_CALLED="$ADD_MARK" \
+  HARMONIC_TEST_ADD_OUT='{"data":{"url":"https://harmonic.new.ws"}}' \
+  bash "$HARM" 2>/dev/null)"
+ok "harmonic reuses existing forward URL"  'printf "%s" "$OUT" | jq -re ".hookSpecificOutput.additionalContext" | grep -q "https://harmonic.existing.ws"'
+ok "harmonic does NOT add when one exists"  '[ ! -f "$ADD_MARK" ]'
+
+# Case B: no `harmonic` forward → hook adds one and emits the URL from the add
+# response (which is wrapped in .data, like the real add output).
+LIST_B="$STUB/list_b.json"
+printf '%s' '{"data":[{"id":1,"hostname":"other","url":"https://other.ws"}]}' > "$LIST_B"
+rm -f "$ADD_MARK"
+OUT="$(printf '{}' | env PATH="$STUB:$PATH" CLOUDAGENT_API_URL=https://example \
+  HARMONIC_TEST_LIST="$LIST_B" HARMONIC_TEST_ADD_CALLED="$ADD_MARK" \
+  HARMONIC_TEST_ADD_OUT='{"data":{"url":"https://harmonic.new.ws"}}' \
+  bash "$HARM" 2>/dev/null)"
+ok "harmonic adds a forward when absent"    '[ -f "$ADD_MARK" ]'
+ok "harmonic emits the new forward URL"      'printf "%s" "$OUT" | jq -re ".hookSpecificOutput.additionalContext" | grep -q "https://harmonic.new.ws"'
+rm -rf "$STUB"
 
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"

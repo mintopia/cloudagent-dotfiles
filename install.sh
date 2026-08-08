@@ -362,11 +362,11 @@ echo
 
 info "Warming Harmonic npx build (first run clones + builds, ~1-2 min)..."
 if command -v npx &>/dev/null; then
-  if npx -y github:mintopia/harmonic status >/dev/null 2>&1; then
-    ok "Harmonic build warmed"
-  else
-    warn "Could not warm Harmonic build now; the hook will build it on first use"
-  fi
+  # `status` exits non-zero when no daemon is running, which is expected at
+  # install time — the npx clone+build (the point of warming) still happens.
+  # So don't treat its exit code as a build failure.
+  npx -y github:mintopia/harmonic status >/dev/null 2>&1 || true
+  ok "Harmonic build warmed (no daemon running yet, as expected)"
 else
   warn "npx not found — skipping Harmonic warm-up"
 fi
