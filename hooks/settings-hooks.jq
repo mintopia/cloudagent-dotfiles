@@ -1,8 +1,6 @@
-# Idempotently add our hooks to settings:
-#   - night-handoff Stop / UserPromptSubmit hooks
-#   - cloudagent-skill SessionStart hook
-# Args: --arg stop_cmd "<abs path> stop"  --arg touch_cmd "<abs path> touch"
-#       --arg session_start_cmd "<abs path>"
+# Idempotently add our SessionStart hook to settings:
+#   - cloudagent-skill  (loads the cloudagent skill in Cloud Agent workspaces)
+# Args: --arg session_start_cmd "<abs path to cloudagent-skill.sh>"
 # Existing hooks for any event are preserved; our entry is added only if a
 # hook with the same command string is not already present.
 
@@ -16,6 +14,4 @@ def add_hook($event; $cmd):
   end;
 
 .hooks = (.hooks // {})
-| add_hook("Stop"; $stop_cmd)
-| add_hook("UserPromptSubmit"; $touch_cmd)
 | add_hook("SessionStart"; $session_start_cmd)

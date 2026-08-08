@@ -55,11 +55,15 @@ jq_write() {
 # something in future means adding one line to the relevant list here.
 DEPRECATED_PLUGINS=(
   "superpowers@claude-plugins-official"
+  # impeccable is now installed as an npx skill, not a plugin.
+  "impeccable@impeccable"
 )
-# Empty: superpowers came from claude-plugins-official, which is shared with
-# other installed plugins and must stay. Only add a marketplace here if this
-# script added it and nothing else needs it.
-DEPRECATED_MARKETPLACES=()
+# The impeccable marketplace was added by this script solely for the impeccable
+# plugin; nothing else needs it now that impeccable is an npx skill, so retire
+# it. (superpowers came from claude-plugins-official, which is shared and stays.)
+DEPRECATED_MARKETPLACES=(
+  "impeccable"
+)
 DEPRECATED_SKILLS=(
   "local-llm-development"
   "quality-gate"
@@ -197,13 +201,14 @@ fi
 
 # --- Marketplaces -----------------------------------------------------------
 info "Configuring plugin marketplaces..."
-add_marketplace "pbakaus/impeccable"    "impeccable"
 add_marketplace "mksglu/context-mode"   "context-mode"
 echo
 
 # --- Plugins ----------------------------------------------------------------
+# impeccable is installed as an npx skill (see Skills), not a plugin.
+# context-mode stays a plugin: its skills wrap the ctx_* MCP server and a
+# PreToolUse routing hook that only the plugin provides.
 info "Installing plugins..."
-install_plugin "impeccable"    "impeccable"
 install_plugin "context-mode"  "context-mode"
 install_plugin "frontend-design" "claude-plugins-official"
 echo
@@ -305,32 +310,40 @@ jq_write "$CLAUDE_DIR/settings.json" \
 ok "Wired statusline into settings.json"
 
 # ---------------------------------------------------------------------------
+# Output style — "I Have ADHD"
+# ---------------------------------------------------------------------------
+# Installed as a native Claude Code output style: the file goes in
+# ~/.claude/output-styles/, and config/settings.json sets "outputStyle" to make
+# it the active style (merged into ~/.claude/settings.json in the Settings step).
+
+info "Installing output style..."
+OUTPUT_STYLES_DIR="$CLAUDE_DIR/output-styles"
+mkdir -p "$OUTPUT_STYLES_DIR"
+cp "$DOTFILES_DIR/config/output-styles/i-have-adhd.md" "$OUTPUT_STYLES_DIR/i-have-adhd.md"
+ok "Installed output style: I Have ADHD"
+echo
+
+# ---------------------------------------------------------------------------
 # Hooks
 # ---------------------------------------------------------------------------
 
 info "Installing hooks..."
 HOOKS_DIR="$CLAUDE_DIR/hooks"
 mkdir -p "$HOOKS_DIR"
-cp "$DOTFILES_DIR/hooks/night-handoff.sh" "$HOOKS_DIR/night-handoff.sh"
-chmod +x "$HOOKS_DIR/night-handoff.sh"
-ok "Installed night-handoff.sh"
 
 cp "$DOTFILES_DIR/hooks/cloudagent-skill.sh" "$HOOKS_DIR/cloudagent-skill.sh"
 chmod +x "$HOOKS_DIR/cloudagent-skill.sh"
 ok "Installed cloudagent-skill.sh"
 
-# Wire the Stop / UserPromptSubmit / SessionStart hooks idempotently, preserving
-# any existing hooks. Absolute paths are machine-specific, so this is done here
-# (not in config/settings.json) and is safe to re-run.
-STOP_CMD="$HOOKS_DIR/night-handoff.sh stop"
-TOUCH_CMD="$HOOKS_DIR/night-handoff.sh touch"
+# Wire the SessionStart hook idempotently, preserving any existing hooks.
+# Absolute paths are machine-specific, so this is done here (not in
+# config/settings.json) and is safe to re-run.
 SESSION_START_CMD="$HOOKS_DIR/cloudagent-skill.sh"
 jq_write "$CLAUDE_DIR/settings.json" \
-   --arg stop_cmd "$STOP_CMD" --arg touch_cmd "$TOUCH_CMD" \
    --arg session_start_cmd "$SESSION_START_CMD" \
    -f "$DOTFILES_DIR/hooks/settings-hooks.jq" \
    "$CLAUDE_DIR/settings.json"
-ok "Wired night-handoff + cloudagent-skill hooks into settings.json"
+ok "Wired cloudagent-skill hook into settings.json"
 echo
 
 cp "$DOTFILES_DIR/config/keybindings.json" "$CLAUDE_DIR/keybindings.json"
@@ -396,10 +409,11 @@ else
 fi
 echo
 
-# Third-party skill families installed via npx (previously vendored verbatim).
-# ponytail (DietrichGebert) and tsmura grill/codex. The whole family is pulled
-# from each repo — no --skill filter.
+# Third-party skills installed via npx. The whole set is pulled from each repo
+# — no --skill filter. impeccable moved here from a plugin (it is a single
+# self-contained skill with no MCP/hooks).
 declare -A THIRDPARTY_SKILLS=(
+  [pbakaus/impeccable]="impeccable skill"
   [DietrichGebert/ponytail]="ponytail family"
   [tsmura/grill-me-codex]="grill + codex-plan-review family"
 )
@@ -433,13 +447,14 @@ echo
 # Join the collected skill names as "a, b, c" (derived, never drifts).
 skills_joined=$(printf ', %s' "${INSTALLED_SKILLS[@]}"); skills_joined=${skills_joined:2}
 echo "Installed:"
-echo "  Plugins:     impeccable, context-mode, frontend-design"
+echo "  Plugins:     context-mode, frontend-design"
 echo "  MCP servers: jcodemunch"
 echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): all mattpocock/skills"
-echo "  Skills (3p): ponytail family, tsmura grill/codex family (via npx skills)"
-echo "  Hooks:       night-handoff (overnight handoff), cloudagent-skill (session-start)"
+echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family (via npx skills)"
+echo "  Hooks:       cloudagent-skill (session-start)"
+echo "  Output style: I Have ADHD (~/.claude/output-styles, active via settings)"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"

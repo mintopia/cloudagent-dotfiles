@@ -28,15 +28,17 @@ to re-run: anything already gone is reported and skipped. Retiring something in
 future is a one-line addition to the relevant array.
 
 Currently retired: the **superpowers** plugin, the **local-llm-development**
-skill, the **quality-gate** skill, and the **caveman** family.
+skill, the **quality-gate** skill, the **caveman** family, and the **impeccable**
+plugin + marketplace (impeccable is now installed as a skill instead).
 
 ## What It Does
 
 ### Plugins
 
-- [Impeccable](https://impeccable.style) — code style enforcement
-- [Context Mode](https://github.com/mksglu/context-mode) — context window protection and FTS5 knowledge base
+- [Context Mode](https://github.com/mksglu/context-mode) — context window protection and FTS5 knowledge base. Stays a plugin: its skills wrap the `ctx_*` MCP server and a PreToolUse routing hook that only the plugin provides.
 - **Frontend Design** — Claude Code's `frontend-design` plugin skill (from the built-in `claude-plugins-official` marketplace), for building and refining UI.
+
+(Impeccable used to be a plugin here; it is now installed as a skill — see below.)
 
 ### MCP Servers
 
@@ -53,6 +55,7 @@ skill, the **quality-gate** skill, and the **caveman** family.
 - **codex-review** — Standalone adversarial plan-review loop. Claude drafts a plan into `PLAN.md`, OpenAI Codex critiques it read-only across rounds (`VERDICT:APPROVED`/`REVISE`) until it converges or hits a round cap. `/codex-review` for when you already have a plan and just want the cross-model stress-test.
 - **deep-analysis** — Explicitly-invoked depth harness (`/deep-analysis`) that runs a diverge → refute → converge loop with fresh-context adversarial sub-agents, killing weak directions on majority-refute with Claude as final arbiter. For high-stakes design, architecture, and tradeoff calls where getting it right beats getting it fast.
 - **grill-me-codex** (+ family) — Two-act plan hardening (`/grill-me-codex`). Act 1 interviews you one question at a time until intent is locked (the `grill-with-docs-codex` variant additionally challenges your plan against `CONTEXT.md`/ADRs and updates them inline); Act 2 hands the plan to Codex for adversarial cross-model review, converging via `VERDICT:APPROVED`/`REVISE`. Installs `grill-me-codex`, `grill-with-docs-codex`, and `codex-plan-review` (which intentionally coexists with the custom `codex-review` skill above) via `npx skills add tsmura/grill-me-codex` from [tsmura's grill-me-codex](https://github.com/tsmura/grill-me-codex) (MIT); `codex-build` is skipped automatically (broken upstream `SKILL.md` YAML).
+- **impeccable** — Frontend design/critique skill (`/impeccable`) covering UX review, visual hierarchy, accessibility, theming, and reusable design systems. Moved from a plugin to a skill in v2 (it is a single self-contained skill with no MCP/hooks), installed via `npx skills add pbakaus/impeccable` from [pbakaus/impeccable](https://github.com/pbakaus/impeccable).
 - **mattpocock/skills** — All of [Matt Pocock's skills](https://github.com/mattpocock/skills) (MIT), installed via `npx skills add mattpocock/skills --skill '*' -g -y --copy`.
 - **pickup** — Lightweight session recap (`/pickup`, or "where were we?") that reconstructs context from durable artifacts (session JSONL, git state, memory) instead of replaying the full conversation like `/resume`. Includes `scripts/extract_session.py`.
 - **ponytail** (+ family) — Laziest-solution-that-works mode (`/ponytail`). Channels a senior dev enforcing YAGNI, stdlib-before-custom, native-before-dependency, and shortest-working-diff, with `lite`/`full`/`ultra` intensity levels. The full family is installed: `ponytail-review` (review for over-engineering), `ponytail-audit` (whole-repo over-engineering scan), `ponytail-debt` (harvest `ponytail:` comments into a debt ledger), `ponytail-gain` (impact scoreboard), and `ponytail-help` (reference card). Installed via `npx skills add` from [DietrichGebert's ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
@@ -68,43 +71,7 @@ Beyond what this repo installs, the `skills` CLI ships its own discovery tool: r
 - **Git** — Global user name and email (Jessica Smith \<jess@mintopia.net\>).
 - **Keybindings** — Shift+Enter for newline in chat.
 - **Decision memory** — ADR-based decision tracking appended to user `AGENTS.md`, teaching agents to search for and respect existing architecture decisions.
-
-## Night handoff hook
-
-`hooks/night-handoff.sh` watches for long-running turns that finish while you are
-asleep and forces Claude to leave a cheap resumption trail, so you don't pay for a
-cold full-context `/resume` in the morning.
-
-How it works:
-
-- A `UserPromptSubmit` hook stamps a per-session marker on every user turn.
-- A `Stop` hook measures how long the just-finished turn ran (`now − marker`). If
-  that turn ran longer than the idle threshold **and** it ended inside your
-  overnight window **and** no handoff was written recently, it returns a
-  `decision:block` instructing Claude to write a handoff document and print a
-  paste-ready resume prompt (prefer `/pickup`).
-
-The handoff instructions are inlined in the hook rather than delegating to Matt
-Pocock's `handoff` skill: that skill sets `disable-model-invocation: true`, so a
-`Stop` hook cannot make the model invoke it. Keeping the steps self-contained
-makes the hook independent of any skill's invocation policy.
-
-Because the measured "idle" is really the turn's duration, a long unattended run
-that finishes at 03:00 triggers a handoff, while you actively chatting at 02:00
-(short turns) does not. A per-session cooldown prevents repeats.
-
-Configuration (environment variables):
-
-| Var | Default | Meaning |
-|-----|---------|---------|
-| `NIGHT_HANDOFF_TZ` | `Europe/London` | Timezone the window is measured in (DST-aware). |
-| `NIGHT_HANDOFF_START` | `1` | Window start hour, inclusive. |
-| `NIGHT_HANDOFF_END` | `9` | Window end hour, exclusive. |
-| `NIGHT_HANDOFF_IDLE_MIN` | `15` | Minimum turn duration (minutes) to count as "away". |
-| `NIGHT_HANDOFF_COOLDOWN_H` | `6` | No repeat handoff within this many hours per session. |
-| `NIGHT_HANDOFF_DISABLE` | _(unset)_ | Set to any value to disable the hook. |
-
-Run the tests with `bash hooks/tests/night-handoff.test.sh`.
+- **Output style ("I Have ADHD")** — action-first output shaping (next step first, numbered steps, no preamble). Installed as a native Claude Code output style: `config/output-styles/i-have-adhd.md` is copied to `~/.claude/output-styles/` and `settings.json` sets `"outputStyle": "I Have ADHD"` to make it active.
 
 ## Cloudagent skill hook
 
@@ -127,7 +94,7 @@ Configuration (environment variables):
 |-----|---------|---------|
 | `CLOUDAGENT_SKILL_HOOK_DISABLE` | _(unset)_ | Set to any value to disable the hook. |
 
-Tests live alongside the night-handoff tests: `bash hooks/tests/night-handoff.test.sh`.
+Run the hook tests with `bash hooks/tests/hooks.test.sh`.
 
 ## Structure
 
@@ -135,9 +102,14 @@ Tests live alongside the night-handoff tests: `bash hooks/tests/night-handoff.te
 ├── install.sh                              # Main setup script
 ├── statusline-command.sh                   # Custom Claude Code statusline
 ├── config/
-│   ├── settings.json                       # Claude Code settings
+│   ├── settings.json                       # Claude Code settings (incl. active outputStyle)
 │   ├── keybindings.json                    # Keybinding overrides
-│   └── agents-append.md                    # Decision memory (appended to ~/.claude/AGENTS.md)
+│   ├── agents-append.md                    # Decision memory (appended to ~/.claude/AGENTS.md)
+│   └── output-styles/i-have-adhd.md        # "I Have ADHD" output style
+├── hooks/
+│   ├── cloudagent-skill.sh                 # SessionStart: load the cloudagent skill
+│   ├── settings-hooks.jq                   # Idempotent SessionStart hook wiring
+│   └── tests/hooks.test.sh                 # Hook + jq tests
 ├── skills/
 │   ├── adr/SKILL.md                        # ADR enforcement and /adr command
 │   ├── cloudagent/SKILL.md                 # CLI reference and workspace conventions

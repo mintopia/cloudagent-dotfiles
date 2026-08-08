@@ -3,5 +3,6 @@
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "teammateMode": "in-process",
-  "skillListingBudgetFraction": 0.05
+  "skillListingBudgetFraction": 0.05,
+  "outputStyle": "I Have ADHD"
 }
