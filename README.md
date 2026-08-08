@@ -27,8 +27,8 @@ near the top of `install.sh`, then continues with the normal install. It is safe
 to re-run: anything already gone is reported and skipped. Retiring something in
 future is a one-line addition to the relevant array.
 
-Currently retired: the **superpowers** plugin and the **local-llm-development**
-skill.
+Currently retired: the **superpowers** plugin, the **local-llm-development**
+skill, the **quality-gate** skill, and the **caveman** family.
 
 ## What It Does
 
@@ -36,24 +36,30 @@ skill.
 
 - [Impeccable](https://impeccable.style) — code style enforcement
 - [Context Mode](https://github.com/mksglu/context-mode) — context window protection and FTS5 knowledge base
+- **Frontend Design** — Claude Code's `frontend-design` plugin skill (from the built-in `claude-plugins-official` marketplace), for building and refining UI.
 
 ### MCP Servers
 
 - [jCodeMunch](https://j.gravelle.us/jCodeMunch) — codebase indexing and analysis (via pipx/pip)
 
+### CLI dependencies
+
+- [`@openai/codex`](https://github.com/openai/codex) — the OpenAI Codex CLI, installed globally via npm (`npm i -g @openai/codex`, idempotent — skipped if `codex` is already on `PATH`). Required by the `codex-review` skill and the tsmura grill/codex skills.
+
 ### Skills
 
 - **adr** — Architecture Decision Record enforcement and creation. Hard-blocks on conflicting ADRs, sequential numbering, `/adr` command for interactive creation.
-- **caveman** (+ family) — Ultra-compressed communication mode (`/caveman`). Cuts output tokens ~75% by dropping articles, filler, and pleasantries while keeping full technical accuracy, with `lite`/`full`/`ultra` (and wenyan) intensity levels. The full family is installed: `caveman-commit` (terse commit messages), `caveman-review` (terse PR feedback), `caveman-compress` (compress CLAUDE.md/memory files, script-backed), `caveman-stats` (session token usage + savings), `cavecrew` (delegating to caveman subagents), and `caveman-help` (reference card). Installed via `npx skills add` from [Julius Brussee's caveman](https://github.com/JuliusBrussee/caveman) (MIT).
-- **cloudagent** — Complete `cloudagent` CLI reference and workspace conventions. Covers file/URL presentation (`open-file`, `open-url`), HTTP forwards for web servers (including the `wss://` and `0.0.0.0` binding requirements), notifications, and kanban ticket management (full reference in `references/kanban.md` for progressive disclosure).
+- **cloudagent** — Complete `cloudagent` CLI reference and workspace conventions. Covers file/URL presentation (`open-file`, `open-url`), HTTP forwards for web servers (including the `wss://` and `0.0.0.0` binding requirements), and notifications.
 - **codex-review** — Standalone adversarial plan-review loop. Claude drafts a plan into `PLAN.md`, OpenAI Codex critiques it read-only across rounds (`VERDICT:APPROVED`/`REVISE`) until it converges or hits a round cap. `/codex-review` for when you already have a plan and just want the cross-model stress-test.
 - **deep-analysis** — Explicitly-invoked depth harness (`/deep-analysis`) that runs a diverge → refute → converge loop with fresh-context adversarial sub-agents, killing weak directions on majority-refute with Claude as final arbiter. For high-stakes design, architecture, and tradeoff calls where getting it right beats getting it fast.
-- **grill-me-codex** — Two-act plan hardening (`/grill-me-codex`). Act 1 interviews you one question at a time until intent is locked; Act 2 hands the plan to Codex for adversarial cross-model review. Builds on Matt Pocock's `grill-me` (MIT).
-- **grill-with-docs-codex** — `grill-me-codex` plus living documentation (`/grill-with-docs-codex`). Act 1 challenges your plan against `CONTEXT.md`/ADRs and updates them inline as decisions crystallise; Act 2 is the Codex review loop. Builds on Matt Pocock's `grill-with-docs` (MIT).
+- **grill-me-codex** (+ family) — Two-act plan hardening (`/grill-me-codex`). Act 1 interviews you one question at a time until intent is locked (the `grill-with-docs-codex` variant additionally challenges your plan against `CONTEXT.md`/ADRs and updates them inline); Act 2 hands the plan to Codex for adversarial cross-model review, converging via `VERDICT:APPROVED`/`REVISE`. Installs `grill-me-codex`, `grill-with-docs-codex`, and `codex-plan-review` (which intentionally coexists with the custom `codex-review` skill above) via `npx skills add tsmura/grill-me-codex` from [tsmura's grill-me-codex](https://github.com/tsmura/grill-me-codex) (MIT); `codex-build` is skipped automatically (broken upstream `SKILL.md` YAML).
+- **mattpocock/skills** — All of [Matt Pocock's skills](https://github.com/mattpocock/skills) (MIT), installed via `npx skills add mattpocock/skills --skill '*' -g -y --copy`.
 - **pickup** — Lightweight session recap (`/pickup`, or "where were we?") that reconstructs context from durable artifacts (session JSONL, git state, memory) instead of replaying the full conversation like `/resume`. Includes `scripts/extract_session.py`.
-- **ponytail** (+ family) — Laziest-solution-that-works mode (`/ponytail`). Channels a senior dev enforcing YAGNI, stdlib-before-custom, native-before-dependency, and shortest-working-diff, with `lite`/`full`/`ultra` intensity levels. The full family is installed: `ponytail-review` (review for over-engineering), `ponytail-audit` (whole-repo over-engineering scan), `ponytail-debt` (harvest `ponytail:` comments into a debt ledger), `ponytail-gain` (impact scoreboard), and `ponytail-help` (reference card). Pairs with **caveman** for terse prose. Installed via `npx skills add` from [DietrichGebert's ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
-- **quality-gate** — Enforces that all test, lint, and quality check failures are fixed before work is considered complete. Prevents Claude from dismissing failures as "unrelated" or "pre-existing". If the suite is red, it gets fixed.
+- **ponytail** (+ family) — Laziest-solution-that-works mode (`/ponytail`). Channels a senior dev enforcing YAGNI, stdlib-before-custom, native-before-dependency, and shortest-working-diff, with `lite`/`full`/`ultra` intensity levels. The full family is installed: `ponytail-review` (review for over-engineering), `ponytail-audit` (whole-repo over-engineering scan), `ponytail-debt` (harvest `ponytail:` comments into a debt ledger), `ponytail-gain` (impact scoreboard), and `ponytail-help` (reference card). Installed via `npx skills add` from [DietrichGebert's ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
+- **roast** — Pressure-tests an idea before you build it (`/roast`). Convenes a 5-persona adversarial council (Contrarian, Expansionist, Logician, Researcher, Buyer) in parallel to attack and defend the idea from every angle, then a Judge synthesizes one `GO`/`RESHAPE`/`KILL` verdict with the cheapest test to de-risk it.
 - **subagent-finder** — Searches the [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) catalog (150+ agents) to find specialist subagents without loading them all into context. Includes `/subagents` command to scan a project's tech stack, recommend matching agents, and install them to `.claude/agents/`.
+
+Beyond what this repo installs, the `skills` CLI ships its own discovery tool: run `npx skills find [query]` to search for third-party skills without installing anything.
 
 ### Configuration
 
@@ -104,8 +110,8 @@ Run the tests with `bash hooks/tests/night-handoff.test.sh`.
 
 `hooks/cloudagent-skill.sh` is a `SessionStart` hook that makes Claude always load
 the `cloudagent` skill at the start of every session, so Cloud Agent workspace
-conventions (presenting files/URLs, exposing web servers, notifications, kanban
-tickets) are in context before Claude does anything.
+conventions (presenting files/URLs, exposing web servers, notifications) are in
+context before Claude does anything.
 
 How it works:
 
@@ -134,17 +140,13 @@ Tests live alongside the night-handoff tests: `bash hooks/tests/night-handoff.te
 │   └── agents-append.md                    # Decision memory (appended to ~/.claude/AGENTS.md)
 ├── skills/
 │   ├── adr/SKILL.md                        # ADR enforcement and /adr command
-│   ├── cloudagent/
-│   │   ├── SKILL.md                        # CLI reference and workspace conventions
-│   │   └── references/kanban.md            # Full kanban ticket system reference
+│   ├── cloudagent/SKILL.md                 # CLI reference and workspace conventions
 │   ├── codex-review/SKILL.md               # Standalone Claude↔Codex plan-review loop
 │   ├── deep-analysis/SKILL.md              # Diverge→refute→converge depth harness
-│   ├── grill-me-codex/SKILL.md             # Interview you, then Codex-review the plan
-│   ├── grill-with-docs-codex/SKILL.md      # grill-me-codex + living CONTEXT.md/ADRs
 │   ├── pickup/
 │   │   ├── SKILL.md                        # /pickup session recap from artifacts
 │   │   └── scripts/extract_session.py      # Session JSONL extractor
-│   ├── quality-gate/SKILL.md               # Enforce fixing all test/lint failures
+│   ├── roast/SKILL.md                      # 5-persona adversarial idea council
 │   └── subagent-finder/
 │       ├── SKILL.md                        # Agent search and /subagents command
 │       └── scripts/
