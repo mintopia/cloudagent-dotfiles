@@ -447,12 +447,55 @@ for skill_dir in "$DOTFILES_DIR"/skills/*/; do
   INSTALLED_SKILLS+=("$skill_name")
 done
 
-# mattpocock/skills — install ALL skills. (mattpocock-skills also exists as a
-# plugin in claude-plugins-official, but the npx-where-possible rule keeps it
-# on npx.)
-info "Installing all mattpocock/skills..."
-if npx -y skills add mattpocock/skills --skill '*' -g -y --copy; then
-  ok "Installed mattpocock/skills (all)"
+# mattpocock/skills — install by explicit name. (mattpocock-skills also exists
+# as a plugin in claude-plugins-official, but the npx-where-possible rule keeps
+# it on npx.) We name each skill instead of using --skill '*' (a.k.a. --all):
+# the glob-all install fails most of the time. Refresh this list with:
+#   npx skills add mattpocock/skills --list
+MATTPOCOCK_SKILLS=(
+  ask-matt
+  claude-handoff
+  code-review
+  codebase-design
+  diagnosing-bugs
+  domain-modeling
+  git-guardrails-claude-code
+  grill-me
+  grill-with-docs
+  grilling
+  handoff
+  implement
+  improve-codebase-architecture
+  loop-me
+  migrate-to-shoehorn
+  prototype
+  research
+  resolving-merge-conflicts
+  scaffold-exercises
+  setup-matt-pocock-skills
+  setup-pre-commit
+  setup-ts-deep-modules
+  tdd
+  teach
+  to-questionnaire
+  to-spec
+  to-tickets
+  triage
+  wait-what
+  wayfinder
+  wizard
+  writing-beats
+  writing-for-agents
+  writing-fragments
+  writing-shape
+)
+mp_skill_flags=()
+for s in "${MATTPOCOCK_SKILLS[@]}"; do
+  mp_skill_flags+=(--skill "$s")
+done
+info "Installing ${#MATTPOCOCK_SKILLS[@]} mattpocock/skills by name..."
+if npx -y skills add mattpocock/skills "${mp_skill_flags[@]}" -g -y --copy; then
+  ok "Installed mattpocock/skills (${#MATTPOCOCK_SKILLS[@]} named)"
 else
   err "Failed to install mattpocock/skills"
 fi
@@ -500,7 +543,7 @@ echo "  Plugins:     context-mode, frontend-design"
 echo "  MCP servers: jcodemunch"
 echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
-echo "  Skills (mp): all mattpocock/skills"
+echo "  Skills (mp): ${#MATTPOCOCK_SKILLS[@]} mattpocock/skills (named)"
 echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family (via npx skills)"
 if [ "$IS_CLOUDAGENT" = true ]; then
   echo "  Hooks:       cloudagent-skill (session-start), harmonic-start (session-start)"
