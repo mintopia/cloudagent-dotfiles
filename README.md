@@ -12,6 +12,11 @@ cd ~/dotfiles
 
 The script is idempotent — safe to run multiple times. Restart Claude Code after running for all changes to take effect.
 
+The **cloudagent skill**, the **cloudagent-skill + harmonic-start hooks**, and
+**Harmonic** are installed only when a Cloud Agent workspace is detected (the
+`cloudagent` CLI on `PATH` or the `CLOUDAGENT_API_URL` env var). On other
+machines they are skipped; everything else installs normally.
+
 ### Removing retired components
 
 A plain run only adds and updates — it never removes anything. To also purge
