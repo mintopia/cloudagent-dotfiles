@@ -195,6 +195,7 @@ echo
 info "Installing plugins..."
 install_plugin "impeccable"    "impeccable"
 install_plugin "context-mode"  "context-mode"
+install_plugin "frontend-design" "claude-plugins-official"
 echo
 
 # ---------------------------------------------------------------------------
@@ -232,6 +233,29 @@ if [ -n "$JCODEMUNCH_CMD" ]; then
       err "Failed to add jcodemunch MCP server"
     fi
   fi
+fi
+echo
+
+# ---------------------------------------------------------------------------
+# npm global dependencies
+# ---------------------------------------------------------------------------
+
+info "Installing npm global dependencies..."
+if command -v npm &>/dev/null; then
+  # @openai/codex — the OpenAI Codex CLI, used by codex-review and the
+  # tsmura grill/codex skills. Idempotent: skip if already on PATH.
+  if command -v codex &>/dev/null; then
+    ok "Already installed: @openai/codex"
+  else
+    info "Installing @openai/codex..."
+    if npm install -g @openai/codex; then
+      ok "Installed: @openai/codex"
+    else
+      err "Failed to install @openai/codex"
+    fi
+  fi
+else
+  err "npm not found — cannot install @openai/codex"
 fi
 echo
 
