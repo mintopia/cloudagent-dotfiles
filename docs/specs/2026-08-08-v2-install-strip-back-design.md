@@ -209,9 +209,33 @@ one. A hook would be a redundant second copy.)
 The `outputStyle` value is the frontmatter `name` (`"I Have ADHD"`) — confirmed
 that Claude Code keys by name, not by filename slug.
 
+### D. Auto-start Harmonic with a private HTTPS forward
+
+[Harmonic](https://github.com/mintopia/harmonic) is an agent UI / task scheduler.
+It should start with the workspace, run as a single instance, and be reachable
+over a private HTTPS forward standardised on the `harmonic` hostname.
+
+Harmonic runs via `npx github:mintopia/harmonic`; `harmonic start` is a singleton
+background daemon (`~/.harmonic`), listens on 4700, binds `0.0.0.0`.
+
+- **Add** `hooks/harmonic-start.sh` — a `SessionStart` hook (Cloud Agent
+  workspace only, kill switch `HARMONIC_HOOK_DISABLE`) that: starts the daemon
+  detached (`npx -y github:mintopia/harmonic start`, singleton by design);
+  ensures a `--private` forward for the `harmonic` hostname on container port
+  4700 (idempotent — add only if absent); surfaces the URL via
+  `additionalContext`.
+- **settings-hooks.jq:** add `--arg harmonic_cmd` and a second
+  `add_hook("SessionStart"; $harmonic_cmd)`.
+- **install.sh:** copy/wire the hook; warm the npx build once
+  (`npx -y github:mintopia/harmonic status`) so the first session is fast.
+- **Auth:** private-forward-only (harmonic ungated); the `--private` forward is
+  the auth boundary. Binding `0.0.0.0` is required for the forward.
+- **README + summary + ADR 0010.**
+
 ### ADRs (amendment)
 
 - 0007: move impeccable from plugin to npx skill (context-mode stays a plugin).
 - 0008: remove the night-handoff hook.
 - 0009: install the ADHD output style as a native output style (file +
   `outputStyle` setting), not a hook.
+- 0010: auto-start Harmonic via a SessionStart hook + private HTTPS forward.

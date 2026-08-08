@@ -454,8 +454,20 @@ as one.)
 - [ ] **Step 5:** Verify: `bash -n install.sh`; `jq -e '.outputStyle=="I Have ADHD"' config/settings.json` → true.
 - [ ] **Step 6:** Commit, Co-Authored-By trailer.
 
-### Task 10: ADRs 0007–0009
+### Task 12: Auto-start Harmonic with a private HTTPS forward
 
-- [ ] **Step 1:** Create `docs/decisions/0007-move-impeccable-plugin-to-skill.md` (context-mode stays a plugin — MCP + hook), `docs/decisions/0008-remove-night-handoff-hook.md`, and `docs/decisions/0009-adhd-output-style-via-sessionstart-hook.md` (classic output styles deprecated), matching the 0002 format.
-- [ ] **Step 2:** Verify sequential numbering 0001–0009.
+**Files:** create `hooks/harmonic-start.sh`; modify `install.sh`, `hooks/settings-hooks.jq`, `hooks/tests/hooks.test.sh`, `README.md`.
+
+- [ ] **Step 1:** Create `hooks/harmonic-start.sh`: SessionStart hook, `set -uo pipefail` (no `-e`). Kill switch `HARMONIC_HOOK_DISABLE`; gate on Cloud Agent workspace. Start detached: `nohup npx -y github:mintopia/harmonic start --port ${HARMONIC_PORT:-4700} &`. Ensure a `--private` forward for hostname `${HARMONIC_HOSTNAME:-harmonic}` on the port (check `http-forwards list --json` first). Emit the URL via `additionalContext`.
+- [ ] **Step 2:** `hooks/settings-hooks.jq` — add `--arg harmonic_cmd` and `add_hook("SessionStart"; $harmonic_cmd)`.
+- [ ] **Step 3:** `install.sh` — copy/chmod the hook; add `--arg harmonic_cmd "$HARMONIC_CMD"` to the wiring jq_write; add a Harmonic section that warms the npx build (`npx -y github:mintopia/harmonic status`, best-effort); summary line.
+- [ ] **Step 4:** `hooks/tests/hooks.test.sh` — jq now wires two SessionStart cmds; add harmonic guard tests (kill switch + outside-workspace, both silent/exit 0).
+- [ ] **Step 5:** `README.md` — document the Harmonic auto-start hook + private forward.
+- [ ] **Step 6:** Verify: `bash -n install.sh`; `bash hooks/tests/hooks.test.sh` all pass.
+- [ ] **Step 7:** Commit, Co-Authored-By trailer.
+
+### Task 10: ADRs 0007–0010
+
+- [ ] **Step 1:** Create `docs/decisions/0007-move-impeccable-plugin-to-skill.md` (context-mode stays a plugin — MCP + hook), `docs/decisions/0008-remove-night-handoff-hook.md`, `docs/decisions/0009-adhd-output-style-native.md` (native output style, not a hook), and `docs/decisions/0010-harmonic-auto-start-hook.md`, matching the 0002 format.
+- [ ] **Step 2:** Verify sequential numbering 0001–0010.
 - [ ] **Step 3:** Commit, Co-Authored-By trailer.
