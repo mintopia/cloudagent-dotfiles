@@ -335,15 +335,41 @@ cp "$DOTFILES_DIR/hooks/cloudagent-skill.sh" "$HOOKS_DIR/cloudagent-skill.sh"
 chmod +x "$HOOKS_DIR/cloudagent-skill.sh"
 ok "Installed cloudagent-skill.sh"
 
-# Wire the SessionStart hook idempotently, preserving any existing hooks.
+cp "$DOTFILES_DIR/hooks/harmonic-start.sh" "$HOOKS_DIR/harmonic-start.sh"
+chmod +x "$HOOKS_DIR/harmonic-start.sh"
+ok "Installed harmonic-start.sh"
+
+# Wire the SessionStart hooks idempotently, preserving any existing hooks.
 # Absolute paths are machine-specific, so this is done here (not in
 # config/settings.json) and is safe to re-run.
 SESSION_START_CMD="$HOOKS_DIR/cloudagent-skill.sh"
+HARMONIC_CMD="$HOOKS_DIR/harmonic-start.sh"
 jq_write "$CLAUDE_DIR/settings.json" \
    --arg session_start_cmd "$SESSION_START_CMD" \
+   --arg harmonic_cmd "$HARMONIC_CMD" \
    -f "$DOTFILES_DIR/hooks/settings-hooks.jq" \
    "$CLAUDE_DIR/settings.json"
-ok "Wired cloudagent-skill hook into settings.json"
+ok "Wired cloudagent-skill + harmonic-start hooks into settings.json"
+echo
+
+# ---------------------------------------------------------------------------
+# Harmonic — warm the npx build
+# ---------------------------------------------------------------------------
+# Harmonic (github.com/mintopia/harmonic) runs straight from GitHub via npx; its
+# first run clones and builds (~1-2 min). Prime that once now so the
+# harmonic-start SessionStart hook starts instantly on the first real session.
+# Best-effort: if this fails (offline, etc.) the hook still builds on first use.
+
+info "Warming Harmonic npx build (first run clones + builds, ~1-2 min)..."
+if command -v npx &>/dev/null; then
+  if npx -y github:mintopia/harmonic status >/dev/null 2>&1; then
+    ok "Harmonic build warmed"
+  else
+    warn "Could not warm Harmonic build now; the hook will build it on first use"
+  fi
+else
+  warn "npx not found — skipping Harmonic warm-up"
+fi
 echo
 
 cp "$DOTFILES_DIR/config/keybindings.json" "$CLAUDE_DIR/keybindings.json"
@@ -453,8 +479,9 @@ echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): all mattpocock/skills"
 echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family (via npx skills)"
-echo "  Hooks:       cloudagent-skill (session-start)"
+echo "  Hooks:       cloudagent-skill (session-start), harmonic-start (session-start)"
 echo "  Output style: I Have ADHD (~/.claude/output-styles, active via settings)"
+echo "  Harmonic:    auto-starts + private HTTPS forward (hostname 'harmonic', port 4700)"
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"
 echo "  Keybindings: ~/.claude/keybindings.json"

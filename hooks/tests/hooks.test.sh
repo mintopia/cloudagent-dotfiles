@@ -17,20 +17,21 @@ ok() {
 }
 
 # --- settings-hooks.jq ------------------------------------------------------
-wire() { jq --arg session_start_cmd "HH session" -f "$FILTER"; }
+wire() { jq --arg session_start_cmd "HH session" --arg harmonic_cmd "HH harmonic" -f "$FILTER"; }
 
 OUT="$(printf '{}' | wire)"
 ok "adds cloudagent SessionStart cmd" 'printf "%s" "$OUT" | jq -e "[.hooks.SessionStart[].hooks[].command]|index(\"HH session\")" >/dev/null'
+ok "adds harmonic SessionStart cmd"   'printf "%s" "$OUT" | jq -e "[.hooks.SessionStart[].hooks[].command]|index(\"HH harmonic\")" >/dev/null'
 ok "no Stop hook wired"               'printf "%s" "$OUT" | jq -e "(.hooks.Stop // []) | length == 0" >/dev/null'
 ok "no UserPromptSubmit hook wired"   'printf "%s" "$OUT" | jq -e "(.hooks.UserPromptSubmit // []) | length == 0" >/dev/null'
 
 OUT="$(printf '{}' | wire | wire)"
-ok "idempotent: no duplicate SessionStart cmd" 'test "$(printf "%s" "$OUT" | jq "[.hooks.SessionStart[].hooks[].command]|map(select(.==\"HH session\"))|length")" -eq 1'
+ok "idempotent: no duplicate SessionStart cmds" 'test "$(printf "%s" "$OUT" | jq "[.hooks.SessionStart[].hooks[].command]|length")" -eq 2'
 
 EXISTING='{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"other.sh"}]}]}}'
 OUT="$(printf '%s' "$EXISTING" | wire)"
 ok "preserves existing SessionStart hook" 'printf "%s" "$OUT" | jq -e "[.hooks.SessionStart[].hooks[].command]|index(\"other.sh\")" >/dev/null'
-ok "adds ours alongside existing"         'test "$(printf "%s" "$OUT" | jq "[.hooks.SessionStart[].hooks[].command]|length")" -eq 2'
+ok "adds both ours alongside existing"    'test "$(printf "%s" "$OUT" | jq "[.hooks.SessionStart[].hooks[].command]|length")" -eq 3'
 
 # --- cloudagent-skill.sh ----------------------------------------------------
 CASKILL="$HOOKS/cloudagent-skill.sh"
@@ -53,6 +54,24 @@ ln -s "$(command -v jq)"   "$CABIN/jq"
 OUT="$(printf '{}' | env -i PATH="$CABIN" CLOUDAGENT_API_URL= bash "$CASKILL" 2>/dev/null)"
 ok "cloudagent outside workspace is silent" '[ -z "$OUT" ]'
 rm -rf "$CABIN"
+
+# --- harmonic-start.sh (guard paths only; no npx/cloudagent side effects) ---
+HARM="$HOOKS/harmonic-start.sh"
+
+# Kill switch: silent, exit 0, even inside a workspace.
+OUT="$(printf '{}' | env CLOUDAGENT_API_URL=https://example HARMONIC_HOOK_DISABLE=1 bash "$HARM" 2>/dev/null)"; RC=$?
+ok "harmonic kill switch is silent" '[ -z "$OUT" ]'
+ok "harmonic kill switch exits 0"   '[ "$RC" -eq 0 ]'
+
+# Outside a Cloud Agent workspace: no cloudagent CLI on PATH, no API URL → exits
+# before touching npx/cloudagent, silent. Minimal PATH so cloudagent is unfound.
+HBIN="$(mktemp -d)"
+ln -s "$(command -v bash)" "$HBIN/bash"
+ln -s "$(command -v jq)"   "$HBIN/jq"
+OUT="$(printf '{}' | env -i PATH="$HBIN" CLOUDAGENT_API_URL= bash "$HARM" 2>/dev/null)"; RC=$?
+ok "harmonic outside workspace is silent" '[ -z "$OUT" ]'
+ok "harmonic outside workspace exits 0"   '[ "$RC" -eq 0 ]'
+rm -rf "$HBIN"
 
 # === SUMMARY (keep last) ===
 echo "Passed: $PASS  Failed: $FAIL"
