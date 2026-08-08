@@ -190,30 +190,27 @@ workspace is left untouched per the user's choice).
 - (night-handoff is a hook, not a plugin/skill/marketplace — there is no
   `--cleanup` path for hooks, and the live workspace is intentionally untouched.)
 
-### C. Install the "I Have ADHD" output style
+### C. Install the "I Have ADHD" output style (native)
 
 The user has an output style (`i-have-adhd.md`, frontmatter `name: I Have ADHD`,
-`keep-coding-instructions: true`). Classic standalone output styles are
-**deprecated** in Claude Code 2.1.226 (`/output-style` removed in 2.1.73);
-Anthropic's successor styles ship as plugins that inject the style via a
-`SessionStart` hook emitting `additionalContext`. Because the file keeps coding
-instructions, a SessionStart injection is a faithful equivalent.
+`keep-coding-instructions: true`). It is installed as a **native Claude Code
+output style** — not a hook. (An earlier draft used a SessionStart injection
+hook; the user corrected this: it is already an output style, so install it as
+one. A hook would be a redundant second copy.)
 
 - **Vendor** the file at `config/output-styles/i-have-adhd.md`.
-- **Add** `hooks/adhd-output-style.sh` — a `SessionStart` hook that strips the
-  YAML frontmatter from the installed style file and emits the body as
-  `additionalContext` (via `jq`, mirroring `cloudagent-skill.sh`). Guarded by
-  `ADHD_OUTPUT_STYLE_DISABLE` kill switch.
-- **install.sh:** copy the style to `~/.claude/output-styles/i-have-adhd.md`
-  (future-proofing) and the hook to `~/.claude/hooks/`; wire a second
-  `SessionStart` `add_hook` in `settings-hooks.jq`.
-- **settings-hooks.jq:** add `--arg adhd_cmd` and a second
-  `add_hook("SessionStart"; $adhd_cmd)`.
-- **README + summary:** document the output style and hook.
+- **install.sh:** copy it to `~/.claude/output-styles/i-have-adhd.md`.
+- **config/settings.json:** add `"outputStyle": "I Have ADHD"` so the settings
+  merge makes it the active style.
+- **README + summary:** document the output style (native, via `outputStyle`).
+- **No hook, no `settings-hooks.jq` change** for this feature.
+
+Open item: the `outputStyle` value is the frontmatter `name` (`"I Have ADHD"`);
+confirm Claude Code keys by name and not by filename slug.
 
 ### ADRs (amendment)
 
 - 0007: move impeccable from plugin to npx skill (context-mode stays a plugin).
 - 0008: remove the night-handoff hook.
-- 0009: install the ADHD output style via a SessionStart injection hook (classic
-  output styles deprecated).
+- 0009: install the ADHD output style as a native output style (file +
+  `outputStyle` setting), not a hook.

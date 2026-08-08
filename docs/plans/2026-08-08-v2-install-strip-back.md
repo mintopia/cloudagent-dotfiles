@@ -434,22 +434,25 @@ Expected: empty (all changes committed).
 - [ ] **Step 2:** `install.sh` summary block — Hooks line → `  Hooks:       cloudagent-skill (session-start)`.
 - [ ] **Step 3:** `git rm hooks/night-handoff.sh`.
 - [ ] **Step 4:** `hooks/settings-hooks.jq` — delete the `add_hook("Stop"; $stop_cmd)` and `add_hook("UserPromptSubmit"; $touch_cmd)` lines; keep `add_hook("SessionStart"; $session_start_cmd)`. Update the header comment and Args doc to reflect only session_start_cmd.
-- [ ] **Step 5:** Create `hooks/tests/cloudagent-skill.test.sh` containing ONLY the cloudagent-skill tests currently in night-handoff.test.sh (the SessionStart/in-workspace/kill-switch/outside-workspace cases), preserving the test harness scaffolding they need. `git rm hooks/tests/night-handoff.test.sh`.
-- [ ] **Step 6:** `README.md` — delete the entire "## Night handoff hook" section; in the "## Cloudagent skill hook" section change the test-command reference from `bash hooks/tests/night-handoff.test.sh` to `bash hooks/tests/cloudagent-skill.test.sh`; update any hooks summary references.
-- [ ] **Step 7:** Verify: `bash -n install.sh`; `bash hooks/tests/cloudagent-skill.test.sh` (all pass); `grep -rc 'night.handoff\|NIGHT_HANDOFF' install.sh hooks/settings-hooks.jq README.md` → all 0.
+- [ ] **Step 5:** Create `hooks/tests/hooks.test.sh` containing the cloudagent-skill tests plus the (now single-SessionStart) settings-hooks.jq tests, preserving the test harness scaffolding they need. `git rm hooks/tests/night-handoff.test.sh`.
+- [ ] **Step 6:** `README.md` — delete the entire "## Night handoff hook" section; in the "## Cloudagent skill hook" section change the test-command reference from `bash hooks/tests/night-handoff.test.sh` to `bash hooks/tests/hooks.test.sh`; update any hooks summary references.
+- [ ] **Step 7:** Verify: `bash -n install.sh`; `bash hooks/tests/hooks.test.sh` (all pass); `grep -rc 'night.handoff\|NIGHT_HANDOFF' install.sh hooks/settings-hooks.jq README.md` → all 0.
 - [ ] **Step 8:** Commit (staging exactly the changed/removed/added files), Co-Authored-By trailer.
 
-### Task 11: Install the "I Have ADHD" output style
+### Task 11: Install the "I Have ADHD" output style (native)
 
-**Files:** vendor `config/output-styles/i-have-adhd.md` (done); create `hooks/adhd-output-style.sh`; modify `install.sh`; modify `hooks/settings-hooks.jq`; modify `README.md`.
+Native output style — NOT a hook. (An earlier draft used a SessionStart
+injection hook; the user corrected it: it is already an output style, install it
+as one.)
 
-- [ ] **Step 1:** Create `hooks/adhd-output-style.sh`: a SessionStart hook. Kill switch `ADHD_OUTPUT_STYLE_DISABLE`. Read `${ADHD_OUTPUT_STYLE_FILE:-$HOME/.claude/output-styles/i-have-adhd.md}`; if missing, `exit 0`. Strip the YAML frontmatter (first `---`…`---`) with awk; emit `{hookSpecificOutput:{hookEventName:"SessionStart", additionalContext: <body>}}` via `jq -n --arg`.
-- [ ] **Step 2:** `install.sh` — add an "Output style" section: `mkdir -p ~/.claude/output-styles`; copy `config/output-styles/i-have-adhd.md` there; copy `hooks/adhd-output-style.sh` to `~/.claude/hooks/` + chmod. Define `ADHD_CMD="$HOOKS_DIR/adhd-output-style.sh"` and pass `--arg adhd_cmd "$ADHD_CMD"` into the settings-hooks jq_write.
-- [ ] **Step 3:** `hooks/settings-hooks.jq` — add `add_hook("SessionStart"; $adhd_cmd)` alongside the cloudagent-skill SessionStart hook; document the new arg.
-- [ ] **Step 4:** `install.sh` summary block — add an "Output style: I Have ADHD (SessionStart injection)" line.
-- [ ] **Step 5:** `README.md` — document the output style + hook (note classic output styles are deprecated; this uses SessionStart injection).
-- [ ] **Step 6:** Verify: `bash -n install.sh`; run the hook against the vendored file (`ADHD_OUTPUT_STYLE_FILE=config/output-styles/i-have-adhd.md bash hooks/adhd-output-style.sh | jq -e '.hookSpecificOutput.additionalContext | length > 0'`) → true; confirm frontmatter is stripped (no `name: I Have ADHD` line in the emitted context).
-- [ ] **Step 7:** Commit, Co-Authored-By trailer.
+**Files:** vendor `config/output-styles/i-have-adhd.md` (done); modify `install.sh`; modify `config/settings.json`; modify `README.md`.
+
+- [ ] **Step 1:** `config/settings.json` — add `"outputStyle": "I Have ADHD"` (value = the frontmatter `name`). The Settings merge activates it.
+- [ ] **Step 2:** `install.sh` — add an "Output style" section: `mkdir -p ~/.claude/output-styles`; copy `config/output-styles/i-have-adhd.md` there. No hook.
+- [ ] **Step 3:** `install.sh` summary block — add `Output style: I Have ADHD (~/.claude/output-styles, active via settings)`.
+- [ ] **Step 4:** `README.md` — document the output style as a native style (file + `outputStyle` setting).
+- [ ] **Step 5:** Verify: `bash -n install.sh`; `jq -e '.outputStyle=="I Have ADHD"' config/settings.json` → true.
+- [ ] **Step 6:** Commit, Co-Authored-By trailer.
 
 ### Task 10: ADRs 0007–0009
 
