@@ -13,7 +13,7 @@ if ! command -v cloudagent >/dev/null 2>&1 && [ -z "${CLOUDAGENT_API_URL:-}" ]; 
   exit 0
 fi
 
-context="You are in a Cloud Agent workspace. Before responding, invoke the \`cloudagent\` skill (via the Skill tool) to load the Cloud Agent workspace conventions. They govern how you present files and URLs to the user, expose web servers, send notifications, and manage kanban tickets — follow them for the rest of this session."
+context="You are in a Cloud Agent workspace. Before responding, invoke the \`cloudagent\` skill (via the Skill tool) to load the Cloud Agent workspace conventions. They govern how you present files and URLs to the user, expose web servers, and send notifications — follow them for the rest of this session."
 
 jq -n --arg ctx "$context" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $ctx}}'
