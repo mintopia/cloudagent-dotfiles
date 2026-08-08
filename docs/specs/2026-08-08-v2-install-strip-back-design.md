@@ -206,8 +206,8 @@ one. A hook would be a redundant second copy.)
 - **README + summary:** document the output style (native, via `outputStyle`).
 - **No hook, no `settings-hooks.jq` change** for this feature.
 
-Open item: the `outputStyle` value is the frontmatter `name` (`"I Have ADHD"`);
-confirm Claude Code keys by name and not by filename slug.
+The `outputStyle` value is the frontmatter `name` (`"I Have ADHD"`) — confirmed
+that Claude Code keys by name, not by filename slug.
 
 ### ADRs (amendment)
 

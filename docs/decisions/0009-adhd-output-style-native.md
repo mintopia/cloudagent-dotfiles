@@ -30,10 +30,9 @@ Install `i-have-adhd.md` as a native Claude Code output style.
 ## Consequences
 
 The output style is applied through Claude Code's own mechanism, with a single
-source of truth (the installed style file) and no duplicated content. One open
-item: the `outputStyle` value is assumed to be the frontmatter `name`
-(`"I Have ADHD"`) rather than a filename slug — to be confirmed against a known
-working configuration.
+source of truth (the installed style file) and no duplicated content. The
+`outputStyle` value is the frontmatter `name` (`"I Have ADHD"`) — confirmed as
+how Claude Code keys output styles, not the filename slug.
 
 ## Supersedes
 
