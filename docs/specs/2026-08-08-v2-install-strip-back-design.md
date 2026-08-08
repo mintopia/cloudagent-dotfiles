@@ -133,7 +133,8 @@ amendment below.)
 
 ## Testing / verification
 
-- `bash hooks/tests/night-handoff.test.sh` still passes (untouched, but run it).
+- `bash hooks/tests/hooks.test.sh` passes (the night-handoff test file was
+  removed in the amendment; the hook tests now live here).
 - Dry-run reasoning: a fresh `./install.sh` installs the new set; `./install.sh
   --cleanup` additionally removes caveman family + quality-gate.
 - Confirm `frontend-design` installs from the default marketplace without an
@@ -177,8 +178,8 @@ workspace is left untouched per the user's choice).
 - **hooks/settings-hooks.jq:** remove the `Stop` and `UserPromptSubmit`
   `add_hook` lines and their `$stop_cmd`/`$touch_cmd` args; keep `SessionStart`.
 - **Tests:** `hooks/tests/night-handoff.test.sh` tests both hooks. Extract the
-  cloudagent-skill tests into `hooks/tests/cloudagent-skill.test.sh` and delete
-  the night-handoff test file.
+  cloudagent-skill + jq tests into `hooks/tests/hooks.test.sh` and delete the
+  night-handoff test file.
 - **README:** delete the entire "Night handoff hook" section; fix the
   "Cloudagent skill hook" section's test-command reference to the new test file;
   update any hook summary/structure references.

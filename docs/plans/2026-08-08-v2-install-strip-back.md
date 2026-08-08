@@ -387,7 +387,7 @@ Expected: `OK`
 
 - [ ] **Step 2: Run the hook test suite (untouched, must still pass)**
 
-Run: `bash hooks/tests/night-handoff.test.sh`
+Run: `bash hooks/tests/hooks.test.sh` (night-handoff.test.sh is removed in the amendment)
 Expected: all tests pass.
 
 - [ ] **Step 3: Sanity-grep the final install.sh**
@@ -428,7 +428,7 @@ Expected: empty (all changes committed).
 
 ### Task 9: Remove the night-handoff hook
 
-**Files:** Modify `install.sh`; delete `hooks/night-handoff.sh`; modify `hooks/settings-hooks.jq`; split `hooks/tests/night-handoff.test.sh` → new `hooks/tests/cloudagent-skill.test.sh`; modify `README.md`.
+**Files:** Modify `install.sh`; delete `hooks/night-handoff.sh`; modify `hooks/settings-hooks.jq`; split `hooks/tests/night-handoff.test.sh` → new `hooks/tests/hooks.test.sh`; modify `README.md`.
 
 - [ ] **Step 1:** `install.sh` Hooks section — remove the `cp .../night-handoff.sh` + `chmod` + its `ok` line, and the `STOP_CMD`/`TOUCH_CMD` definitions. Change the `jq_write` hook-wiring call to pass ONLY `--arg session_start_cmd "$SESSION_START_CMD"`. Update the surrounding comment and the `ok "Wired ..."` message to say cloudagent-skill only.
 - [ ] **Step 2:** `install.sh` summary block — Hooks line → `  Hooks:       cloudagent-skill (session-start)`.
