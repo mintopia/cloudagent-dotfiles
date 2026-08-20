@@ -33,6 +33,7 @@ The route most work travels. (For the granular Matt Pocock version of this flow 
 - **`/blast-radius`** — before shipping a small-looking change, find what it could break *beyond the diff*, and prove the one fact it's safe by running real code. For risky infra/networking/hardware diffs.
 - **`/create-verification-skill`** — generate a per-repo skill that drives this app the way a user does (playwright for UI/web). Run once per repo that has no scripted way to prove behaviour. **`/maintain-verification-skill`** keeps that skill honest later.
 - **`/security-review`** — security pass over pending changes.
+- **`/no-comments`** — adversarial comment sweep: a hostile reviewer hunts narration, workaround sermons, and lint/TS suppressions on a diff, then offers to encode real constraints as types/tests/CI. The after-the-fact heavy version of ponytail's write-time comment discipline.
 
 ## Understand & explain
 
