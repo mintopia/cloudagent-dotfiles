@@ -501,6 +501,31 @@ else
 fi
 echo
 
+# pstack (cursor/plugins) — install four skills UNCHANGED from upstream by name.
+# These need no Cursor->Claude rework, so they track upstream instead of being
+# vendored. The rework-heavy pstack skills (why, interrogate, create-verification-
+# skill, maintain-verification-skill, reflect) are vendored as first-party skills
+# under skills/ instead — see ADR 0012. cursor/plugins is a monorepo of ~79 skills;
+# we name the four we want. Refresh the available list with:
+#   npx skills add cursor/plugins --list
+PSTACK_SKILLS=(
+  unslop
+  blast-radius
+  typescript-best-practices
+  show-me-your-work
+)
+pstack_skill_flags=()
+for s in "${PSTACK_SKILLS[@]}"; do
+  pstack_skill_flags+=(--skill "$s")
+done
+info "Installing ${#PSTACK_SKILLS[@]} pstack skills by name (unchanged from upstream)..."
+if npx -y skills add cursor/plugins "${pstack_skill_flags[@]}" -g -y --copy; then
+  ok "Installed pstack skills (${#PSTACK_SKILLS[@]} named)"
+else
+  err "Failed to install pstack skills"
+fi
+echo
+
 # Third-party skills installed via npx. The whole set is pulled from each repo
 # — no --skill filter. impeccable moved here from a plugin (it is a single
 # self-contained skill with no MCP/hooks).
@@ -544,6 +569,7 @@ echo "  MCP servers: jcodemunch"
 echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): ${#MATTPOCOCK_SKILLS[@]} mattpocock/skills (named)"
+echo "  Skills (ps): ${#PSTACK_SKILLS[@]} pstack skills (named, unchanged from upstream)"
 echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family (via npx skills)"
 if [ "$IS_CLOUDAGENT" = true ]; then
   echo "  Hooks:       cloudagent-skill (session-start), harmonic-start (session-start)"

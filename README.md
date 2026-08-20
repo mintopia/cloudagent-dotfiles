@@ -67,6 +67,23 @@ plugin + marketplace (impeccable is now installed as a skill instead).
 - **roast** — Pressure-tests an idea before you build it (`/roast`). Convenes a 5-persona adversarial council (Contrarian, Expansionist, Logician, Researcher, Buyer) in parallel to attack and defend the idea from every angle, then a Judge synthesizes one `GO`/`RESHAPE`/`KILL` verdict with the cheapest test to de-risk it.
 - **subagent-finder** — Searches the [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) catalog (150+ agents) to find specialist subagents without loading them all into context. Includes `/subagents` command to scan a project's tech stack, recommend matching agents, and install them to `.claude/agents/`.
 
+#### pstack skills (see [ADR 0012](docs/decisions/0012-adopt-selected-pstack-skills.md))
+
+A curated subset of [pstack](https://github.com/cursor/plugins/tree/main/pstack) (poteto's Cursor plugin), in two lanes. Most of pstack is deliberately **not** adopted — it duplicates skills we already run, and `poteto-mode` is skipped as a driver (it competes with ponytail + the wayfinder pipeline).
+
+- **Installed unchanged from upstream** via `npx skills add cursor/plugins --skill …` (need no rework): **unslop** (cut AI tells from prose), **blast-radius** (prove what a change breaks by running code), **typescript-best-practices** (always-on for `.ts/.tsx`), **show-me-your-work** (TSV decision log for unattended runs).
+- **Vendored as first-party skills** under `skills/` with light generic Cursor→Claude rework (model panel → Claude subagents + codex; UI driving → playwright; no ticket-MCP wiring):
+  - **why** — evidence-backed design rationale; discovers MCPs at runtime and queries each evidence category in parallel.
+  - **interrogate** — multi-model adversarial diff review (independent Claude subagents + a codex reviewer). Separate from `code-review`.
+  - **create-verification-skill** / **maintain-verification-skill** — generate and maintain a per-repo skill that drives the app like a user (playwright for UI/web).
+  - **reflect** — spawn review subagents over the transcript and route each learning into an edit on an existing skill.
+
+The five cherry-picked pstack **principles** (type-system discipline, model the domain, idempotency, prove it works, guard the context window) are encoded as always-apply notes in `config/agents-append.md`, not installed as skills.
+
+#### ask-jess
+
+- **ask-jess** — a router over the whole installed stack (`/ask-jess`). Given a situation, it points to the skill or flow that fits — the Matt Pocock idea→ship flow, the vendored pstack skills, the ponytail/caveman modes, and the first-party skills here. Falls back to `scripts/catalog.sh`, which lists every installed skill from `~/.claude/skills`, when the situation isn't in its curated map.
+
 Beyond what this repo installs, the `skills` CLI ships its own discovery tool: run `npx skills find [query]` to search for third-party skills without installing anything.
 
 ### Configuration
