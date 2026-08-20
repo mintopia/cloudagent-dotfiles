@@ -1,8 +1,14 @@
 {
   "model": "claude-opus-4-8",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_MOUSE_CLICKS": "1",
+    "CLAUDE_CODE_DISABLE_MOUSE": "1",
+    "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "0"
+  },
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "teammateMode": "in-process",
   "skillListingBudgetFraction": 0.05,
-  "outputStyle": "I Have ADHD"
+  "outputStyle": "Concise"
 }
