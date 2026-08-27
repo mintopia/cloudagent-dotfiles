@@ -66,6 +66,7 @@ plugin + marketplace (impeccable is now installed as a skill instead).
 - **ponytail** (+ family) — Laziest-solution-that-works mode (`/ponytail`). Channels a senior dev enforcing YAGNI, stdlib-before-custom, native-before-dependency, and shortest-working-diff, with `lite`/`full`/`ultra` intensity levels. The full family is installed: `ponytail-review` (review for over-engineering), `ponytail-audit` (whole-repo over-engineering scan), `ponytail-debt` (harvest `ponytail:` comments into a debt ledger), `ponytail-gain` (impact scoreboard), and `ponytail-help` (reference card). Installed via `npx skills add` from [DietrichGebert's ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 - **roast** — Pressure-tests an idea before you build it (`/roast`). Convenes a 5-persona adversarial council (Contrarian, Expansionist, Logician, Researcher, Buyer) in parallel to attack and defend the idea from every angle, then a Judge synthesizes one `GO`/`RESHAPE`/`KILL` verdict with the cheapest test to de-risk it.
 - **subagent-finder** — Searches the [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents) catalog (150+ agents) to find specialist subagents without loading them all into context. Includes `/subagents` command to scan a project's tech stack, recommend matching agents, and install them to `.claude/agents/`.
+- **visual-companion** — Browser-based visual companion that serves HTML mockups, wireframes, and diagrams to the user's browser and records their click selections, for design/frontend/architecture questions that are better *seen* than read. Vendored from the superpowers `brainstorming` skill (MIT, obra/superpowers) as a standalone skill so it survives the superpowers drop ([ADR 0002](docs/decisions/0002-drop-superpowers-and-retire-via-cleanup-flag.md)); made Cloud Agent-aware — `start-companion.sh` auto-creates a TLS `http-forward` and the patched `helper.js` upgrades the WebSocket to `wss://` on https pages, while off Cloud Agent it runs plain localhost. See [ADR 0014](docs/decisions/0014-vendor-visual-companion-as-standalone-skill.md).
 
 #### pstack skills (see [ADR 0012](docs/decisions/0012-adopt-selected-pstack-skills.md))
 
@@ -173,11 +174,18 @@ Configuration (environment variables):
 │   │   ├── SKILL.md                        # /pickup session recap from artifacts
 │   │   └── scripts/extract_session.py      # Session JSONL extractor
 │   ├── roast/SKILL.md                      # 5-persona adversarial idea council
-│   └── subagent-finder/
-│       ├── SKILL.md                        # Agent search and /subagents command
+│   ├── subagent-finder/
+│   │   ├── SKILL.md                        # Agent search and /subagents command
+│   │   └── scripts/
+│   │       ├── search.sh                   # Keyword search against agent catalog
+│   │       └── assess.sh                   # Project tech stack scanner
+│   └── visual-companion/
+│       ├── SKILL.md                        # Browser mockup/diagram companion
 │       └── scripts/
-│           ├── search.sh                   # Keyword search against agent catalog
-│           └── assess.sh                   # Project tech stack scanner
+│           ├── start-companion.sh          # Cloud Agent-aware launcher (auto http-forward)
+│           ├── stop-companion.sh           # Teardown: remove forward + stop server
+│           ├── helper.js                   # Client script (patched ws://→wss:// on https)
+│           └── …                           # server.cjs + start/stop-server + frame-template (upstream)
 ├── decision-memory/
 │   ├── decision-memory.md                  # How the decision memory system works
 │   └── example-adr.md                      # ADR template
