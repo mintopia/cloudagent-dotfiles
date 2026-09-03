@@ -533,6 +533,7 @@ declare -A THIRDPARTY_SKILLS=(
   [pbakaus/impeccable]="impeccable skill"
   [DietrichGebert/ponytail]="ponytail family"
   [tsmura/grill-me-codex]="grill + codex-plan-review family"
+  [petergyang/no-ai-slop]="no-ai-slop skill"
 )
 for repo in "${!THIRDPARTY_SKILLS[@]}"; do
   label="${THIRDPARTY_SKILLS[$repo]}"
@@ -570,7 +571,7 @@ echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): ${#MATTPOCOCK_SKILLS[@]} mattpocock/skills (named)"
 echo "  Skills (ps): ${#PSTACK_SKILLS[@]} pstack skills (named, unchanged from upstream)"
-echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family (via npx skills)"
+echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family, no-ai-slop (via npx skills)"
 if [ "$IS_CLOUDAGENT" = true ]; then
   echo "  Hooks:       cloudagent-skill (session-start), harmonic-start (session-start)"
 fi
