@@ -58,6 +58,7 @@ plugin + marketplace (impeccable is now installed as a skill instead).
 - **adr** — Architecture Decision Record enforcement and creation. Hard-blocks on conflicting ADRs, sequential numbering, `/adr` command for interactive creation.
 - **cloudagent** — Complete `cloudagent` CLI reference and workspace conventions. Covers file/URL presentation (`open-file`, `open-url`), HTTP forwards for web servers (including the `wss://` and `0.0.0.0` binding requirements), and notifications.
 - **codex-review** — Standalone adversarial plan-review loop. Claude drafts a plan into `PLAN.md`, OpenAI Codex critiques it read-only across rounds (`VERDICT:APPROVED`/`REVISE`) until it converges or hits a round cap. `/codex-review` for when you already have a plan and just want the cross-model stress-test.
+- **consolidate-tests** — Verification-gated test consolidation (`/consolidate-tests`). Condenses a sprawling TDD-grown suite — hundreds of tiny single-assertion tests — into fewer, faster tests (parameterize, lift setup, merge near-duplicate files, share fixtures) while a baseline→consolidate→prove loop guarantees coverage and behavioral guarantees are unchanged (coverage-diff per file + deliberate source break, escalating to mutation score for high-stakes suites). `techniques.md` holds the before/after pattern catalog.
 - **deep-analysis** — Explicitly-invoked depth harness (`/deep-analysis`) that runs a diverge → refute → converge loop with fresh-context adversarial sub-agents, killing weak directions on majority-refute with Claude as final arbiter. For high-stakes design, architecture, and tradeoff calls where getting it right beats getting it fast.
 - **grill-me-codex** (+ family) — Two-act plan hardening (`/grill-me-codex`). Act 1 interviews you one question at a time until intent is locked (the `grill-with-docs-codex` variant additionally challenges your plan against `CONTEXT.md`/ADRs and updates them inline); Act 2 hands the plan to Codex for adversarial cross-model review, converging via `VERDICT:APPROVED`/`REVISE`. Installs `grill-me-codex`, `grill-with-docs-codex`, and `codex-plan-review` (which intentionally coexists with the custom `codex-review` skill above) via `npx skills add tsmura/grill-me-codex` from [tsmura's grill-me-codex](https://github.com/tsmura/grill-me-codex) (MIT); `codex-build` is skipped automatically (broken upstream `SKILL.md` YAML).
 - **impeccable** — Frontend design/critique skill (`/impeccable`) covering UX review, visual hierarchy, accessibility, theming, and reusable design systems. Moved from a plugin to a skill in v2 (it is a single self-contained skill with no MCP/hooks), installed via `npx skills add pbakaus/impeccable` from [pbakaus/impeccable](https://github.com/pbakaus/impeccable).
@@ -169,6 +170,9 @@ Configuration (environment variables):
 │   ├── adr/SKILL.md                        # ADR enforcement and /adr command
 │   ├── cloudagent/SKILL.md                 # CLI reference and workspace conventions
 │   ├── codex-review/SKILL.md               # Standalone Claude↔Codex plan-review loop
+│   ├── consolidate-tests/
+│   │   ├── SKILL.md                        # Verification-gated test consolidation loop
+│   │   └── techniques.md                   # Before/after consolidation pattern catalog
 │   ├── deep-analysis/SKILL.md              # Diverge→refute→converge depth harness
 │   ├── pickup/
 │   │   ├── SKILL.md                        # /pickup session recap from artifacts
