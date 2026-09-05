@@ -6,6 +6,7 @@
     "CLAUDE_CODE_DISABLE_MOUSE": "1",
     "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "0"
   },
+  "includeCoAuthoredBy": false,
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "teammateMode": "in-process",
