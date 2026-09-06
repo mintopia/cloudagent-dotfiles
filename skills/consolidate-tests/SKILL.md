@@ -11,15 +11,15 @@ If `CONTEXT.md` exists, read it so merged test names match the project's domain 
 
 ## The tax is per-file, not per-test
 
-A slow suite is rarely slow in its assertions. Vitest's own `Duration` line usually reads `tests 1%` — the cost is `import`, `environment`, and worker setup, paid once **per file** and again on every `beforeEach`. Consolidation buys speed by amortizing that fixed cost: fewer files, setup lifted out of the per-test path, expensive resources (DB, server) stood up once and shared. Parameterizing 40 tests into one table barely moves the clock — it earns its place by killing duplication so the next reader sees one behavior, not forty. Chase wall-clock in the setup phase, legibility in the test bodies.
+A slow suite is rarely slow in its assertions. Break the runtime down by phase and the assertions are usually a sliver — the cost is process/interpreter startup, module import or compilation, and fixture/environment setup, paid once **per file** and again on every per-test setup hook. Consolidation buys speed by amortizing that fixed cost: fewer files, setup lifted out of the per-test path, expensive resources (DB, server) stood up once and shared. Parameterizing 40 tests into one table barely moves the clock — it earns its place by killing duplication so the next reader sees one behavior, not forty. Chase wall-clock in the setup phase, legibility in the test bodies.
 
 ## Speed has a ceiling — memory and CPU
 
-`isolate: false`, shared worker pools, and `test.concurrent` (see [techniques.md](techniques.md)) all buy wall-clock by keeping more suites resident and running at once — they trade **memory for speed**. Past the box's ceiling that trade inverts: a full run at max parallelism exhausts RAM and gets OOM-killed, which surfaces as a hang or a failed suite, not as "too fast." So resource load is a metric beside wall-clock:
+Parallel workers, reused processes, and shared test environments (see [techniques.md](techniques.md)) all buy wall-clock by keeping more suites resident and running at once — they trade **memory for speed**. Past the box's ceiling that trade inverts: a full run at max parallelism exhausts RAM and gets OOM-killed, which surfaces as a hang or a failed suite, not as "too fast." So resource load is a metric beside wall-clock:
 
 - Run the full suite **once at a time, sequentially** — never overlap two runs. Background measurement runs stack, and two suites at full parallelism is the fastest way to OOM the box.
-- When memory climbs, **cap workers** (`--maxWorkers`, `poolOptions.*.maxThreads`) instead of chasing peak parallelism.
-- **Measure peak, not just wall-clock**: `/usr/bin/time -v npm test` reports Maximum resident set size. A batch that halves wall-clock but doubles peak RSS on a shared box moved the cost, it didn't remove it.
+- When memory climbs, **cap the worker/process count** your runner spawns instead of chasing peak parallelism.
+- **Measure peak, not just wall-clock**: `/usr/bin/time -v <your test command>` reports Maximum resident set size. A batch that halves wall-clock but doubles peak RSS on a shared box moved the cost, it didn't remove it.
 
 ## The loop
 
@@ -27,7 +27,7 @@ Work in **small reversible batches** — one file, or one pattern in one file. A
 
 Batches are small, but the **scope is the whole suite the user named** — every area, not the first. Map every candidate target across that scope up front (step 2), then run the loop until the map is empty in one pass: take the next target the moment a batch lands, and keep going on your own authority. Finishing one file or one area is a checkpoint, not the finish line.
 
-1. **Baseline.** The suite is green, or stop — never consolidate on red. If the base branch is still moving, rebase onto it first: consolidating on a drifting base folds its behavior changes into your coverage diff and disguises them as consolidation errors. Then branch off the green base and capture coverage to a file: `vitest run --coverage`. This snapshot is the invariant every batch is checked against.
+1. **Baseline.** The suite is green, or stop — never consolidate on red. If the base branch is still moving, rebase onto it first: consolidating on a drifting base folds its behavior changes into your coverage diff and disguises them as consolidation errors. Then branch off the green base and capture coverage to a file with your runner's coverage command. This snapshot is the invariant every batch is checked against.
 2. **Map the scope, take the next target.** On the first pass, enumerate every consolidation target across the whole scope (see *What to merge*); that map is the definition of done. Take the next target from it. Skip anything that isn't duplication-with-trivial-variation — as a recorded skip, not a silent one.
 3. **Consolidate.** Apply one technique (see [techniques.md](techniques.md)). Keep behavior identical; change only structure.
 4. **Verify — the gate.** Re-run the suite: still green. Re-run coverage: line, branch, and function no worse on **every** file, not merely in the total. Then break the source on purpose — flip one assertion's subject, or mutate the code under test — and confirm the merged test goes **red**. A merge that stays green on a real fault has dropped a guarantee. Any check fails → revert the batch (drop its commit). When a merged test goes red, first separate a real regression from base drift or pre-existing flake — re-run that test on the untouched baseline; only a fault the baseline doesn't show is the merge's, and only that one is yours to fix here.
@@ -37,8 +37,8 @@ Batches are small, but the **scope is the whole suite the user named** — every
 
 The unit is **behavior**, not method or assertion. The heuristic:
 
-- **Same behavior, varying data → parameterize.** N tests that differ only in input→expected collapse to one body plus a literal table (`it.each` / `test.for`). Each row still reports as its own case, so failure isolation survives.
-- **Same behavior, one result object → group assertions.** Many checks against fields of the *same* produced value are one behavior; keep them together with `toMatchObject` or `expect.soft` so every field reports, not just the first to fail.
+- **Same behavior, varying data → parameterize.** N tests that differ only in input→expected collapse to one body plus a literal table — your framework's parameterized form (`it.each`, `@pytest.mark.parametrize`, JUnit `@ParameterizedTest`, Go table-driven loop, …). Each row still reports as its own case, so failure isolation survives.
+- **Same behavior, one result object → group assertions.** Many checks against fields of the *same* produced value are one behavior; keep them together with a whole-object match or soft assertions so every field reports, not just the first to fail.
 - **Different behaviors → keep separate.** Never merge two behaviors to cut lines. Dedupe only their *setup*, via a shared fixture or builder.
 - **Same unit, scattered files → merge the files** and share one builder set.
 
@@ -48,9 +48,9 @@ Preserve granularity where it carries signal. Two checks that fail *independentl
 
 - **Assertion roulette** — unrelated assertions in one test, so a failure names no cause. Merge only same-behavior assertions; keep per-case titles and use soft assertions.
 - **Eager test** — one test exercising several behaviors end to end. Split it back out.
-- **Hidden shared mutable state** — a lifted fixture that tests mutate becomes a false-pass/false-fail source. Lift to `beforeAll` only when the resource is read-only or each test resets what it touched.
+- **Hidden shared mutable state** — a lifted fixture that tests mutate becomes a false-pass/false-fail source. Lift to a once-per-file setup hook only when the resource is read-only or each test resets what it touched.
 - **Logic in tests** — keep `if` / `for` / computed-expected out of a merged body. Use a *literal* table, never one that recomputes the code under test.
 
 ## Proving equivalence
 
-Scope the coverage diff to the unit under test (`--coverage.include`): coverage of files only incidentally touched jitters run-to-run, and comparing the whole map turns that noise into false regressions. Coverage percentages are also necessary but weak — they prove lines *ran*, not that anything *asserted* on them. That is why step 4 pairs the coverage diff with a deliberate source break: the cheap proof that the merged test still catches the fault. For a suite guarding something high-stakes, escalate to a mutation-score check (StrykerJS) before and after — an equal-or-higher score proves the suite still catches the same faults, which coverage never shows.
+Scope the coverage diff to the unit under test (most runners take an include/filter flag): coverage of files only incidentally touched jitters run-to-run, and comparing the whole map turns that noise into false regressions. Coverage percentages are also necessary but weak — they prove lines *ran*, not that anything *asserted* on them. That is why step 4 pairs the coverage diff with a deliberate source break: the cheap proof that the merged test still catches the fault. For a suite guarding something high-stakes, escalate to a mutation-score check (a mutation-testing tool — StrykerJS, mutmut, PIT, …) before and after — an equal-or-higher score proves the suite still catches the same faults, which coverage never shows.

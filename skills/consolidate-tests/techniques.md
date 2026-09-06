@@ -1,6 +1,15 @@
 # Consolidation techniques
 
-The catalog for step 3. Each entry: when it applies, the before→after shape, and the safe-when rule. Examples reference the harmonic suite (Vitest + TypeScript) — a suite grown to 257 files / 2,557 tests / 82s wall clock, where `import` alone was 85s of worker time. The patterns are the same in any framework.
+The catalog for step 3. Each entry: when it applies, the before→after shape, and the safe-when rule. The patterns and safe-when rules are framework-independent; the code examples are written in one concrete stack (Vitest + TypeScript, from the harmonic suite — 257 files / 2,557 tests / 82s wall clock, where import alone was 85s of worker time). Translate the syntax to yours:
+
+| Concept | Vitest | pytest | JUnit 5 | Go |
+|---|---|---|---|---|
+| Parameterized table | `it.each` / `test.for` | `@pytest.mark.parametrize` | `@ParameterizedTest` | table-driven `for _, tt := range` |
+| Once-per-file setup | `beforeAll` | module/class fixture (`scope=`) | `@BeforeAll` | `TestMain` / `sync.Once` |
+| Per-test setup | `beforeEach` | function fixture | `@BeforeEach` | per-subtest setup |
+| Whole-object / soft assert | `toMatchObject` / `expect.soft` | dataclass `==` / `pytest.approx` | AssertJ `SoftAssertions` | `reflect.DeepEqual` |
+| Isolation / parallelism | `isolate`, `pool`, `maxConcurrency` | `pytest-xdist -n` | JUnit parallel config | `t.Parallel()`, `-p` |
+| Mutation testing | StrykerJS | mutmut / cosmic-ray | PIT | go-mutesting |
 
 ## 1. Parameterize repeated cases — `it.each` / `test.for`
 
@@ -78,9 +87,9 @@ Use `expect.soft(...)` when fields need individual assertions but should all rep
 
 Safe when: the fields describe *one* behavior on *one* value. Two independently-failing behaviors stay separate.
 
-## 5. Vitest config levers
+## 5. Config levers (suite-wide)
 
-Suite-wide speed beyond per-file merges:
+Suite-wide speed beyond per-file merges. The names below are Vitest's; most parallel runners have equivalents (see the mapping above):
 
 - **`isolate: false` with `pool: 'threads'` (or `'forks'`)** reuses the worker and environment across files instead of rebuilding per file — the single biggest config win when tests tolerate shared module state. Harmonic already applies this to its hot files via a `fast` project (`isolate:false` + a `fast-pool.list`), leaving the rest in an `isolated` project. Confirm the suite still passes under it, and check `vitest doctor`.
 - **`test.concurrent` / `maxConcurrency`** run async tests within a file in parallel. Concurrent tests must use the context `expect`: `async ({ expect }) => { /* ... */ }`, or assertions attribute to the wrong case.
