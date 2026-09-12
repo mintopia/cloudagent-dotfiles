@@ -10,9 +10,9 @@ browser and records their clicks. You write HTML to a watched directory; the
 browser shows the newest screen; the user clicks to select; you read their
 selections next turn.
 
-Vendored from the superpowers `brainstorming` skill (MIT, obra/superpowers) and
-made standalone + Cloud Agent-aware. It is **not** tied to a brainstorming flow —
-reach for it in any conversation where seeing beats reading.
+Adapted from an MIT-licensed upstream (obra/superpowers) and made standalone +
+Cloud Agent-aware. It is **not** tied to a brainstorming flow — reach for it in
+any conversation where seeing beats reading.
 
 ## When to Use
 
@@ -60,8 +60,8 @@ Save `screen_dir` and `state_dir` from the response, and share the full `url`.
 - **Give the user the complete `url`, including `?key=…`.** The server rejects any
   request without the key — never strip the query string or hand out a bare host.
 - **Pass the project root as `--project-dir`** so mockups persist under
-  `.superpowers/brainstorm/` and survive restarts. Without it files go to `/tmp`
-  and get cleaned up. Remind the user to add `.superpowers/` to `.gitignore` if it
+  `.visual-companion/brainstorm/` and survive restarts. Without it files go to `/tmp`
+  and get cleaned up. Remind the user to add `.visual-companion/` to `.gitignore` if it
   isn't already.
 - **If you background the launch,** read the URL/port back from
   `$STATE_DIR/server-info` on your next turn.
@@ -76,7 +76,10 @@ In a Cloud Agent workspace (`CLOUDAGENT_API_URL` + the `cloudagent` CLI),
    hostname and rewrites the returned `url` to the public `https://` address.
 3. Relies on the patched `helper.js`, which upgrades the WebSocket to `wss://`
    automatically on https pages — so live-reload and click tracking keep working
-   behind the forward instead of silently dying on mixed-content.
+   behind the forward instead of silently dying on mixed-content. If the
+   WebSocket still can't connect (a proxy that won't upgrade), the page falls back
+   to REST polling (`/poll` for reloads, `POST /event` for clicks), so the
+   companion keeps working over plain HTTPS.
 
 Send the `https://` URL to the user with `cloudagent open-url "$URL" --title "Visual Companion"`.
 Restarts reuse the same port, key, and forward, so an already-open tab reconnects
@@ -186,7 +189,7 @@ scripts/stop-companion.sh <session_dir>
 ```
 
 Removes the http-forward (Cloud Agent) and stops the server. Mockups under
-`.superpowers/brainstorm/` persist for later review; `/tmp` sessions are deleted.
+`.visual-companion/brainstorm/` persist for later review; `/tmp` sessions are deleted.
 
 ## Reference
 

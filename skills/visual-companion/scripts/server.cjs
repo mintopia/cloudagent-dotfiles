@@ -102,14 +102,11 @@ const URL_HOST = process.env.BRAINSTORM_URL_HOST || (HOST === '127.0.0.1' ? 'loc
 const SESSION_DIR = process.env.BRAINSTORM_DIR || '/tmp/brainstorm';
 const CONTENT_DIR = path.join(SESSION_DIR, 'content');
 const STATE_DIR = path.join(SESSION_DIR, 'state');
-const SUPERPOWERS_VERSION = readSuperpowersVersion();
-const SUPERPOWERS_BRAND_IMAGE_URL = 'https://primeradiant.com/brand/superpowers-visual-brainstorming-logo.png';
-const TELEMETRY_DISABLE_ENV_VARS = [
-  'SUPERPOWERS_DISABLE_TELEMETRY',
-  'DISABLE_TELEMETRY',
-  'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC'
-];
-const SUPERPOWERS_TELEMETRY_DISABLED = TELEMETRY_DISABLE_ENV_VARS.some(name => isTruthyEnv(process.env[name]));
+// Bumped whenever a screen is added/updated. Clients poll /poll and reload when
+// it changes — the REST fallback for when WebSockets can't connect (e.g. a proxy
+// that won't upgrade). Seeded from the clock so a same-port restart looks like a
+// change and open tabs reload onto the newest screen.
+let screenVersion = Date.now();
 let ownerPid = process.env.BRAINSTORM_OWNER_PID ? Number(process.env.BRAINSTORM_OWNER_PID) : null;
 
 // Per-session secret key. The companion is reachable by any local browser tab
@@ -205,54 +202,10 @@ const helperInjection = '<script>\n' + helperScript + '\n</script>';
 
 // ========== Helper Functions ==========
 
-function readSuperpowersVersion() {
-  const root = path.join(__dirname, '../../..');
-  const manifests = [
-    path.join(root, 'package.json'),
-    path.join(root, '.codex-plugin/plugin.json')
-  ];
-
-  for (const manifest of manifests) {
-    try {
-      const data = JSON.parse(fs.readFileSync(manifest, 'utf-8'));
-      if (data.version) return String(data.version);
-    } catch (e) {
-      // Packaged Codex plugins omit package.json; try the next manifest.
-    }
-  }
-
-  return 'unknown';
-}
-
-function isTruthyEnv(value) {
-  if (!value) return false;
-  const normalized = String(value).trim().toLowerCase();
-  if (!normalized) return false;
-  return !['0', 'false', 'no', 'off'].includes(normalized);
-}
-
-function escapeHtmlText(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function brandMarkup() {
-  const version = escapeHtmlText(SUPERPOWERS_VERSION);
-  const text = SUPERPOWERS_TELEMETRY_DISABLED
-    ? 'Prime Radiant Superpowers v' + version
-    : 'Superpowers v' + version;
-  const logo = SUPERPOWERS_TELEMETRY_DISABLED
-    ? ''
-    : '<img class="brand-logo" src="' + SUPERPOWERS_BRAND_IMAGE_URL + '?v=' + encodeURIComponent(SUPERPOWERS_VERSION) + '" alt="Prime Radiant" referrerpolicy="no-referrer" decoding="async">';
-
-  return '<div class="brand"><a href="https://github.com/obra/superpowers">' + logo + '<span class="brand-copy">' + text + '</span></a></div>';
-}
-
+// The frame and waiting pages carry a `<!-- BRANDING -->` marker where a brand
+// block once went; strip it so the pages stay unbranded.
 function renderBranding(html) {
-  return html.split('<!-- BRANDING -->').join(brandMarkup());
+  return html.split('<!-- BRANDING -->').join('');
 }
 
 function isFullDocument(html) {
@@ -384,6 +337,20 @@ function isAllowedWebSocketOrigin(req) {
 
 // ========== HTTP Request Handler ==========
 
+function readBody(req, maxBytes = 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', c => {
+      size += c.length;
+      if (size > maxBytes) { reject(new Error('body too large')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    req.on('error', reject);
+  });
+}
+
 function handleRequest(req, res) {
   if (!isAuthorized(req)) {
     res.writeHead(403, securityHeaders({ 'Content-Type': 'text/html; charset=utf-8' }));
@@ -417,6 +384,16 @@ function handleRequest(req, res) {
 
     res.writeHead(200, securityHeaders({ 'Content-Type': 'text/html; charset=utf-8' }));
     res.end(html);
+  } else if (req.method === 'GET' && pathname === '/poll') {
+    // REST fallback liveness/reload signal for tabs whose WebSocket can't connect.
+    res.writeHead(200, securityHeaders({ 'Content-Type': 'application/json' }));
+    res.end(JSON.stringify({ version: screenVersion }));
+  } else if (req.method === 'POST' && pathname === '/event') {
+    // REST fallback for click/choice events. Already gated by the key/cookie at
+    // the top of handleRequest; the SameSite=Strict cookie blocks cross-site POSTs.
+    readBody(req)
+      .then(raw => { try { recordEvent(JSON.parse(raw)); } catch (e) {} res.writeHead(204, securityHeaders()); res.end(); })
+      .catch(() => { res.writeHead(400, securityHeaders()); res.end('Bad request'); });
   } else if (req.method === 'GET' && pathname.startsWith('/files/')) {
     const fileName = path.basename(pathname.slice(7));
     const filePath = path.join(CONTENT_DIR, fileName);
@@ -500,6 +477,17 @@ function handleUpgrade(req, socket) {
   socket.on('error', () => clients.delete(socket));
 }
 
+// Record a user event, whether it arrived over the WebSocket or the POST /event
+// REST fallback.
+function recordEvent(event) {
+  if (!event || typeof event !== 'object') return;
+  touchActivity();
+  console.log(JSON.stringify({ source: 'user-event', ...event }));
+  if (event.choice) {
+    fs.appendFileSync(path.join(STATE_DIR, 'events'), JSON.stringify(event) + '\n');
+  }
+}
+
 function handleMessage(text) {
   let event;
   try {
@@ -508,12 +496,7 @@ function handleMessage(text) {
     console.error('Failed to parse WebSocket message:', e.message);
     return;
   }
-  touchActivity();
-  console.log(JSON.stringify({ source: 'user-event', ...event }));
-  if (event && event.choice) {
-    const eventsFile = path.join(STATE_DIR, 'events');
-    fs.appendFileSync(eventsFile, JSON.stringify(event) + '\n');
-  }
+  recordEvent(event);
 }
 
 function broadcast(msg) {
@@ -608,6 +591,7 @@ function startServer() {
         console.log(JSON.stringify({ type: 'screen-updated', file: filePath }));
       }
 
+      screenVersion = Date.now();
       broadcast({ type: 'reload' });
     }, 100));
   });
