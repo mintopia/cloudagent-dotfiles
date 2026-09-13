@@ -194,16 +194,16 @@ add_marketplace() {
 info "Setting up Cloud Agent dotfiles..."
 echo
 
-# Detect a Cloud Agent workspace the same way the skill and hooks do: the
+# Detect a Cloud Agent workspace the same way the skill and hook do: the
 # `cloudagent` CLI on PATH or the CLOUDAGENT_API_URL env var. The cloudagent
-# skill, the cloudagent-skill + harmonic-start hooks, and the Harmonic warm-up
-# are installed ONLY in that environment; elsewhere they are skipped.
+# skill and the cloudagent-skill hook are installed ONLY in that environment;
+# elsewhere they are skipped.
 if command -v cloudagent >/dev/null 2>&1 || [ -n "${CLOUDAGENT_API_URL:-}" ]; then
   IS_CLOUDAGENT=true
-  info "Cloud Agent workspace detected — cloudagent skill/hooks + Harmonic will install"
+  info "Cloud Agent workspace detected — cloudagent skill + hook will install"
 else
   IS_CLOUDAGENT=false
-  warn "No Cloud Agent workspace detected — skipping cloudagent skill/hooks + Harmonic"
+  warn "No Cloud Agent workspace detected — skipping cloudagent skill + hook"
 fi
 echo
 
@@ -339,54 +339,51 @@ echo
 # ---------------------------------------------------------------------------
 # Hooks (Cloud Agent workspaces only)
 # ---------------------------------------------------------------------------
-# Both hooks are cloudagent-specific — cloudagent-skill loads the cloudagent
-# skill, harmonic-start manages Harmonic + its private forward — so they are
-# installed and wired only inside a Cloud Agent workspace.
+# The cloudagent-skill hook loads the cloudagent skill, so it is installed and
+# wired only inside a Cloud Agent workspace.
+
+# Retire the harmonic-start hook, which these dotfiles used to install. Done
+# unconditionally (not gated behind --cleanup) because a stale wiring keeps
+# firing on every SessionStart and starts a daemon we no longer want. Unwire it
+# from settings.json and delete the hook file, best-effort, if present.
+HOOKS_DIR="$CLAUDE_DIR/hooks"
+STALE_HARMONIC_HOOK="$HOOKS_DIR/harmonic-start.sh"
+if [ -f "$CLAUDE_DIR/settings.json" ] \
+   && grep -q 'harmonic-start.sh' "$CLAUDE_DIR/settings.json" 2>/dev/null; then
+  info "Removing stale harmonic-start hook wiring from settings.json..."
+  jq_write "$CLAUDE_DIR/settings.json" '
+    (.hooks.SessionStart) |= ((. // [])
+      | map(.hooks |= map(select((.command // "") | endswith("harmonic-start.sh") | not)))
+      | map(select((.hooks | length) > 0)))
+  ' "$CLAUDE_DIR/settings.json"
+  ok "Unwired harmonic-start hook from settings.json"
+fi
+if [ -e "$STALE_HARMONIC_HOOK" ]; then
+  rm -f "$STALE_HARMONIC_HOOK"
+  ok "Removed stale hook file: harmonic-start.sh"
+fi
+echo
 
 if [ "$IS_CLOUDAGENT" = true ]; then
   info "Installing hooks..."
-  HOOKS_DIR="$CLAUDE_DIR/hooks"
   mkdir -p "$HOOKS_DIR"
 
   cp "$DOTFILES_DIR/hooks/cloudagent-skill.sh" "$HOOKS_DIR/cloudagent-skill.sh"
   chmod +x "$HOOKS_DIR/cloudagent-skill.sh"
   ok "Installed cloudagent-skill.sh"
 
-  cp "$DOTFILES_DIR/hooks/harmonic-start.sh" "$HOOKS_DIR/harmonic-start.sh"
-  chmod +x "$HOOKS_DIR/harmonic-start.sh"
-  ok "Installed harmonic-start.sh"
-
-  # Wire the SessionStart hooks idempotently, preserving any existing hooks.
+  # Wire the SessionStart hook idempotently, preserving any existing hooks.
   # Absolute paths are machine-specific, so this is done here (not in
   # config/settings.json) and is safe to re-run.
   SESSION_START_CMD="$HOOKS_DIR/cloudagent-skill.sh"
-  HARMONIC_CMD="$HOOKS_DIR/harmonic-start.sh"
   jq_write "$CLAUDE_DIR/settings.json" \
      --arg session_start_cmd "$SESSION_START_CMD" \
-     --arg harmonic_cmd "$HARMONIC_CMD" \
      -f "$DOTFILES_DIR/hooks/settings-hooks.jq" \
      "$CLAUDE_DIR/settings.json"
-  ok "Wired cloudagent-skill + harmonic-start hooks into settings.json"
-  echo
-
-  # --- Harmonic: warm the npx build ---
-  # Harmonic runs straight from GitHub via npx; its first run clones and builds
-  # (~1-2 min). Prime that once now so the harmonic-start SessionStart hook
-  # starts instantly on the first real session. Best-effort: if this fails
-  # (offline, etc.) the hook still builds on first use.
-  info "Warming Harmonic npx build (first run clones + builds, ~1-2 min)..."
-  if command -v npx &>/dev/null; then
-    # `status` exits non-zero when no daemon is running, which is expected at
-    # install time — the npx clone+build (the point of warming) still happens.
-    # So don't treat its exit code as a build failure.
-    npx -y github:mintopia/harmonic status >/dev/null 2>&1 || true
-    ok "Harmonic build warmed (no daemon running yet, as expected)"
-  else
-    warn "npx not found — skipping Harmonic warm-up"
-  fi
+  ok "Wired cloudagent-skill hook into settings.json"
   echo
 else
-  info "Skipping hooks + Harmonic (not a Cloud Agent workspace)"
+  info "Skipping hooks (not a Cloud Agent workspace)"
   echo
 fi
 
@@ -573,13 +570,11 @@ echo "  Skills (mp): ${#MATTPOCOCK_SKILLS[@]} mattpocock/skills (named)"
 echo "  Skills (ps): ${#PSTACK_SKILLS[@]} pstack skills (named, unchanged from upstream)"
 echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family, no-ai-slop (via npx skills)"
 if [ "$IS_CLOUDAGENT" = true ]; then
-  echo "  Hooks:       cloudagent-skill (session-start), harmonic-start (session-start)"
+  echo "  Hooks:       cloudagent-skill (session-start)"
 fi
 echo "  Output style: I Have ADHD (~/.claude/output-styles, active via settings)"
-if [ "$IS_CLOUDAGENT" = true ]; then
-  echo "  Harmonic:    auto-starts + private HTTPS forward (hostname 'harmonic', port 4700)"
-else
-  echo "  (cloudagent skill, hooks + Harmonic skipped — not a Cloud Agent workspace)"
+if [ "$IS_CLOUDAGENT" != true ]; then
+  echo "  (cloudagent skill + hook skipped — not a Cloud Agent workspace)"
 fi
 echo "  Statusline:  ~/.claude/statusline-command.sh"
 echo "  Settings:    ~/.claude/settings.json"

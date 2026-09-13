@@ -1,6 +1,6 @@
 # Decision: Auto-start Harmonic via a SessionStart hook with a private forward
 
-Status: accepted
+Status: superseded by [0017](0017-remove-harmonic-auto-start-hook.md)
 Date: 2026-08-08
 
 ## Context

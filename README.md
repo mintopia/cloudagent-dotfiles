@@ -12,10 +12,10 @@ cd ~/dotfiles
 
 The script is idempotent — safe to run multiple times. Restart Claude Code after running for all changes to take effect.
 
-The **cloudagent skill**, the **cloudagent-skill + harmonic-start hooks**, and
-**Harmonic** are installed only when a Cloud Agent workspace is detected (the
-`cloudagent` CLI on `PATH` or the `CLOUDAGENT_API_URL` env var). On other
-machines they are skipped; everything else installs normally.
+The **cloudagent skill** and the **cloudagent-skill hook** are installed only
+when a Cloud Agent workspace is detected (the `cloudagent` CLI on `PATH` or the
+`CLOUDAGENT_API_URL` env var). On other machines they are skipped; everything
+else installs normally.
 
 ### Removing retired components
 
@@ -121,36 +121,10 @@ Configuration (environment variables):
 
 Run the hook tests with `bash hooks/tests/hooks.test.sh`.
 
-## Harmonic auto-start hook
-
-`hooks/harmonic-start.sh` is a `SessionStart` hook that keeps
-[Harmonic](https://github.com/mintopia/harmonic) — an agent UI / task scheduler —
-running and reachable in a Cloud Agent workspace.
-
-How it works:
-
-- On `SessionStart` (inside a Cloud Agent workspace only), it runs
-  `npx github:mintopia/harmonic start`, which launches Harmonic as a single
-  background daemon (logs to `~/.harmonic`). Harmonic's `start` is a **singleton**
-  — it refuses if a daemon is already running — so repeated sessions never spawn
-  a second instance. The daemon is started detached, so a slow first-run build
-  never blocks session start.
-- It then ensures a **private HTTPS forward** on the `harmonic` hostname exists
-  (`cloudagent http-forwards add --container 4700 --hostname harmonic --private`),
-  adding it only when one is not already present.
-- It surfaces the resulting private URL to Claude via `additionalContext`.
-
-Harmonic binds `0.0.0.0` (required so the forward's proxy can reach it) and runs
-ungated — the `--private` forward is the auth boundary. `install.sh` warms the
-npx build once so the first session starts instantly.
-
-Configuration (environment variables):
-
-| Var | Default | Meaning |
-|-----|---------|---------|
-| `HARMONIC_PORT` | `4700` | Port Harmonic listens on / the forward targets. |
-| `HARMONIC_HOSTNAME` | `harmonic` | Subdomain for the private HTTPS forward. |
-| `HARMONIC_HOOK_DISABLE` | _(unset)_ | Set to any value to disable the hook. |
+`install.sh` also retires the old `harmonic-start` hook: if a previous install
+wired it into `~/.claude/settings.json`, the script unwires it and deletes
+`~/.claude/hooks/harmonic-start.sh`. This runs on every install (not only under
+`--cleanup`) because a stale wiring would keep firing on each `SessionStart`.
 
 ## Structure
 
@@ -164,7 +138,6 @@ Configuration (environment variables):
 │   └── output-styles/i-have-adhd.md        # "I Have ADHD" output style
 ├── hooks/
 │   ├── cloudagent-skill.sh                 # SessionStart: load the cloudagent skill
-│   ├── harmonic-start.sh                   # SessionStart: start Harmonic + private forward
 │   ├── settings-hooks.jq                   # Idempotent SessionStart hook wiring
 │   └── tests/hooks.test.sh                 # Hook + jq tests
 ├── skills/
