@@ -44,7 +44,7 @@ extract_frontmatter() {
 extract_field() {
   local frontmatter="$1"
   local field="$2"
-  echo "$frontmatter" | grep -E "^${field}:" | sed "s/^${field}:[[:space:]]*//" | sed 's/^"\(.*\)"$/\1/'
+  echo "$frontmatter" | grep -E "^${field}:" | sed "s/^${field}:[[:space:]]*//" | sed 's/^"\(.*\)"$/\1/' || true
 }
 
 ensure_repo
