@@ -224,6 +224,19 @@ echo
 info "Installing plugins..."
 install_plugin "context-mode"  "context-mode"
 install_plugin "frontend-design" "claude-plugins-official"
+
+# context-mode is upstream, so patch its installed routing hook to let loopback
+# (localhost/127.0.0.1/::1) curl/wget + inline HTTP through instead of
+# redirecting to the ctx_* sandbox — dev-server verification needs raw local
+# requests (retro 2026-10-05). Idempotent, keyed on a marker.
+if [ -f "$DOTFILES_DIR/hooks/patch-context-mode-localhost.mjs" ] && command -v node >/dev/null 2>&1; then
+  info "Patching context-mode hook to allow localhost..."
+  if CLAUDE_DIR="$CLAUDE_DIR" node "$DOTFILES_DIR/hooks/patch-context-mode-localhost.mjs"; then
+    ok "context-mode localhost bypass applied"
+  else
+    warn "context-mode localhost patch did not apply (hook may have changed upstream)"
+  fi
+fi
 echo
 
 # ---------------------------------------------------------------------------

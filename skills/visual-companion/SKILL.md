@@ -42,13 +42,16 @@ feels right?" is visual — browser.
 ## Starting a Session
 
 Launch **after** the user agrees to the visual companion. Always use
-`start-companion.sh` — it is the Cloud Agent-aware wrapper (see below); off Cloud
-Agent it transparently runs the plain localhost server.
+`launch-persistent.sh` — it runs the Cloud Agent-aware wrapper inside a detached
+tmux session so the server survives the turn, and prints the same start JSON.
+The server self-terminates the moment its owner process exits, so launching it
+any other way — the harness's background mode especially — kills it within
+seconds ("owner process exited"). Do not run it with run_in_background.
 
 ```bash
 # --project-dir persists mockups and enables same-port restart.
 # --open auto-opens the browser on the first screen.
-scripts/start-companion.sh --project-dir /path/to/project --open
+scripts/launch-persistent.sh --project-dir /path/to/project --open
 
 # Returns: {"type":"server-started","port":52341,
 #           "url":"https://visual-companion.<workspace>.cloudagent.../?key=ab12…",
@@ -63,8 +66,8 @@ Save `screen_dir` and `state_dir` from the response, and share the full `url`.
   `.visual-companion/brainstorm/` and survive restarts. Without it files go to `/tmp`
   and get cleaned up. Remind the user to add `.visual-companion/` to `.gitignore` if it
   isn't already.
-- **If you background the launch,** read the URL/port back from
-  `$STATE_DIR/server-info` on your next turn.
+- **The launch is synchronous** — `launch-persistent.sh` blocks until the server
+  reports its URL, so read the fields straight from its JSON output.
 
 ### Cloud Agent behaviour
 
@@ -89,7 +92,7 @@ on its own.
 
 1. **Confirm the server is alive, then write HTML** to a new file in `screen_dir`:
    - Alive = `$STATE_DIR/server-info` exists and `$STATE_DIR/server-stopped` does
-     not. If it shut down, relaunch with `start-companion.sh` and the **same
+     not. If it shut down, relaunch with `launch-persistent.sh` and the **same
      `--project-dir`** — same port/URL, the open tab reconnects itself. (Auto-exits
      after 4h idle; tune with `--idle-timeout-minutes`.)
    - Semantic filenames: `layout.html`, `visual-style.html`. **Never reuse a
@@ -193,6 +196,7 @@ Removes the http-forward (Cloud Agent) and stops the server. Mockups under
 
 ## Reference
 
+- `scripts/launch-persistent.sh` — tmux wrapper that keeps the server's owner process alive (use this to launch)
 - `scripts/start-companion.sh` / `scripts/stop-companion.sh` — Cloud Agent-aware wrappers
 - `scripts/start-server.sh` / `scripts/stop-server.sh` — upstream server (unmodified)
 - `scripts/server.cjs` — the watching web server (unmodified)

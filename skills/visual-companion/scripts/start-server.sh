@@ -150,12 +150,20 @@ fi
 
 cd "$SCRIPT_DIR" || exit 1
 
-# Resolve the harness PID (grandparent of this script).
-# $PPID is the ephemeral shell the harness spawned to run us — it dies
-# when this script exits. The harness itself is $PPID's parent.
-OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')"
-if [[ -z "$OWNER_PID" || "$OWNER_PID" == "1" ]]; then
-  OWNER_PID="$PPID"
+# An explicit owner from the launcher wins: a detached launcher (see
+# launch-persistent.sh) points the watchdog at a process that outlives this
+# script, so the server survives the launching turn instead of dying with the
+# ephemeral harness shell ("owner process exited").
+if [[ -n "${BRAINSTORM_OWNER_PID_OVERRIDE:-}" ]]; then
+  OWNER_PID="$BRAINSTORM_OWNER_PID_OVERRIDE"
+else
+  # Resolve the harness PID (grandparent of this script).
+  # $PPID is the ephemeral shell the harness spawned to run us — it dies
+  # when this script exits. The harness itself is $PPID's parent.
+  OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')"
+  if [[ -z "$OWNER_PID" || "$OWNER_PID" == "1" ]]; then
+    OWNER_PID="$PPID"
+  fi
 fi
 
 # Windows/MSYS2: Node.js cannot see POSIX PIDs from the MSYS2 namespace.

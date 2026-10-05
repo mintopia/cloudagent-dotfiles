@@ -25,4 +25,9 @@ if [[ -f "$FWD_FILE" ]] && command -v cloudagent >/dev/null 2>&1; then
   fi
 fi
 
+# Kill the persistent tmux session launch-persistent.sh parks on `sleep infinity`.
+if command -v tmux >/dev/null 2>&1; then
+  tmux kill-session -t "${VC_TMUX_SESSION:-visual-companion}" 2>/dev/null || true
+fi
+
 exec "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR"
