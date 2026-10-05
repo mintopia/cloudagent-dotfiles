@@ -462,12 +462,15 @@ MATTPOCOCK_SKILLS=(
   grilling
   handoff
   implement
+  implement-spec
   improve-codebase-architecture
   loop-me
   migrate-to-shoehorn
+  pr
   prototype
   research
   resolving-merge-conflicts
+  retro
   scaffold-exercises
   setup-matt-pocock-skills
   setup-pre-commit
