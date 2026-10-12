@@ -215,6 +215,7 @@ fi
 # --- Marketplaces -----------------------------------------------------------
 info "Configuring plugin marketplaces..."
 add_marketplace "mksglu/context-mode"   "context-mode"
+add_marketplace "karanb192/claude-code-mods" "claude-code-mods"
 echo
 
 # --- Plugins ----------------------------------------------------------------
@@ -224,6 +225,11 @@ echo
 info "Installing plugins..."
 install_plugin "context-mode"  "context-mode"
 install_plugin "frontend-design" "claude-plugins-official"
+
+# --- Mods -------------------------------------------------------------------
+# Mods install like plugins but need Claude Code 2.1.287+ to load.
+info "Installing mods..."
+install_plugin "cache-tax" "claude-code-mods"
 
 # context-mode is upstream, so patch its installed routing hook to let loopback
 # (localhost/127.0.0.1/::1) curl/wget + inline HTTP through instead of
