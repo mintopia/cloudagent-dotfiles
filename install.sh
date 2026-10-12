@@ -565,6 +565,16 @@ for repo in "${!THIRDPARTY_SKILLS[@]}"; do
 done
 echo
 
+# humanlayer/skills — show-me only. The repo is a grab-bag of ~10 skills;
+# refresh the list with: npx skills add humanlayer/skills --list
+info "Installing humanlayer/skills (show-me)..."
+if npx -y skills add humanlayer/skills --skill show-me -g -y --copy; then
+  ok "Installed humanlayer/skills (show-me)"
+else
+  err "Failed to install humanlayer/skills (show-me)"
+fi
+echo
+
 # ---------------------------------------------------------------------------
 # Git
 # ---------------------------------------------------------------------------
@@ -590,7 +600,7 @@ echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
 echo "  Skills (mp): ${#MATTPOCOCK_SKILLS[@]} mattpocock/skills (named)"
 echo "  Skills (ps): ${#PSTACK_SKILLS[@]} pstack skills (named, unchanged from upstream)"
-echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family, no-ai-slop (via npx skills)"
+echo "  Skills (3p): impeccable, ponytail family, tsmura grill/codex family, no-ai-slop, show-me (via npx skills)"
 if [ "$IS_CLOUDAGENT" = true ]; then
   echo "  Hooks:       cloudagent-skill (session-start)"
 fi
