@@ -14,6 +14,8 @@
 #   --idle-timeout-minutes <n>  Shut down after n minutes idle (default 240 = 4h).
 #   --open                Auto-open the browser on the first screen (use only
 #                         after the user approves the visual companion).
+#   --grill               Serve the grill UI (grill-server.cjs) with its session
+#                         under <project-dir>/.grill/ instead of mockups.
 #   --foreground          Run server in the current terminal (no backgrounding).
 #   --background          Force background mode (overrides Codex auto-foreground).
 
@@ -26,6 +28,7 @@ FORCE_BACKGROUND="false"
 BIND_HOST="127.0.0.1"
 URL_HOST=""
 IDLE_TIMEOUT_MINUTES=""
+GRILL="false"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project-dir)
@@ -43,6 +46,10 @@ while [[ $# -gt 0 ]]; do
     --idle-timeout-minutes)
       IDLE_TIMEOUT_MINUTES="$2"
       shift 2
+      ;;
+    --grill)
+      GRILL="true"
+      shift
       ;;
     --open)
       export BRAINSTORM_OPEN=1
@@ -113,7 +120,20 @@ umask 077
 # Generate unique session directory
 SESSION_ID="$$-$(date +%s)"
 
-if [[ -n "$PROJECT_DIR" ]]; then
+if [[ "$GRILL" == "true" ]]; then
+  if [[ -z "$PROJECT_DIR" ]]; then
+    echo '{"error": "--grill requires --project-dir"}'
+    exit 1
+  fi
+  # A grill session outlives server restarts: reuse the newest session dir.
+  GRILL_ROOT="${PROJECT_DIR}/.grill"
+  mkdir -p "$GRILL_ROOT"
+  SESSION_DIR="$(ls -d "$GRILL_ROOT"/session-* 2>/dev/null | sort | tail -1)"
+  [[ -n "$SESSION_DIR" ]] || SESSION_DIR="${GRILL_ROOT}/session-$(date +%Y%m%d-%H%M%S)"
+  export BRAINSTORM_PORT_FILE="${GRILL_ROOT}/.last-port"
+  export BRAINSTORM_TOKEN_FILE="${GRILL_ROOT}/.last-token"
+  SERVER_FILE="grill-server.cjs"
+elif [[ -n "$PROJECT_DIR" ]]; then
   SESSION_DIR="${PROJECT_DIR}/.visual-companion/brainstorm/${SESSION_ID}"
   # Persist the bound port and key per project so a restart reuses them and an
   # already-open browser tab reconnects to the same URL with a valid cookie.
@@ -131,6 +151,16 @@ SERVER_ID_FILE="${STATE_DIR}/server-instance-id"
 # Create fresh session directory with content and state peers
 mkdir -p "${SESSION_DIR}/content" "$STATE_DIR"
 
+# Keep session files out of git via the repo-local exclude (no .gitignore edit).
+if [[ -n "$PROJECT_DIR" ]] && EXCLUDE="$(git -C "$PROJECT_DIR" rev-parse --git-path info/exclude 2>/dev/null)"; then
+  [[ "$EXCLUDE" == /* ]] || EXCLUDE="${PROJECT_DIR}/${EXCLUDE}"
+  mkdir -p "$(dirname "$EXCLUDE")"
+  for pat in .grill/ .visual-companion/; do
+    grep -qxF "$pat" "$EXCLUDE" 2>/dev/null || echo "$pat" >> "$EXCLUDE"
+  done
+fi
+
+SERVER_FILE="${SERVER_FILE:-server.cjs}"
 SERVER_ID=""
 if [[ -r /dev/urandom ]]; then
   SERVER_ID="$(od -An -N24 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' || true)"
@@ -176,7 +206,7 @@ fi
 
 # Foreground mode for environments that reap detached/background processes.
 if [[ "$FOREGROUND" == "true" ]]; then
-  env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" node server.cjs "--brainstorm-server-id=$SERVER_ID" &
+  env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" node "$SERVER_FILE" "--brainstorm-server-id=$SERVER_ID" &
   SERVER_PID=$!
   echo "$SERVER_PID" > "$PID_FILE"
   wait "$SERVER_PID"
@@ -185,7 +215,7 @@ fi
 
 # Start server, capturing output to log file
 # Use nohup to survive shell exit; disown to remove from job table
-nohup env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" node server.cjs "--brainstorm-server-id=$SERVER_ID" > "$LOG_FILE" 2>&1 &
+nohup env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" node "$SERVER_FILE" "--brainstorm-server-id=$SERVER_ID" > "$LOG_FILE" 2>&1 &
 SERVER_PID=$!
 disown "$SERVER_PID" 2>/dev/null
 echo "$SERVER_PID" > "$PID_FILE"
