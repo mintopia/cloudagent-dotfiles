@@ -62,6 +62,10 @@ ok "session has a decision log file"    '[ "$(jq -r .decision_log <<<"$OUT2")" =
 ok "git-ignore file is untouched"       '[ ! -e "$P/.gitignore" ]'
 ok "visual-companion dir is excluded"   'grep -qxF ".visual-companion/" "$P/.git/info/exclude"'
 
+ok "open round stays open after restart" '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r ".rounds[1].answers")" = null ]'
+printf -- '- chose files\n' >> "$SDIR/decisions.md"
+ok "state shows appended decision log"  'curl -s "$BASE/state?key=$KEY" | jq -e ".decisions|contains(\"chose files\")" >/dev/null'
+
 ST="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill --grill-status)"
 ok "status offers the unfinished session" '[ "$(jq -r .unfinished <<<"$ST")" = "$SDIR" ] && [ "$(jq -r .rounds <<<"$ST")" = 2 ] && [ "$(jq -r .answered <<<"$ST")" = 1 ]'
 
@@ -74,6 +78,10 @@ SDIR3="$(jq -r .session_dir <<<"$OUT3")"
 ok "after finishing, a new session starts" '[ "$SDIR3" != "$SDIR" ] && [ "$(jq -r .resumed <<<"$OUT3")" = false ]'
 ok "new session reuses port and key"    '[ "$(jq -r .url <<<"$OUT3")" = "$URL" ]'
 ok "old session history is untouched"   '[ -f "$SDIR/round-002.json" ] && [ -f "$SDIR/answers-001.json" ]'
+
+sleep 1; OUT4="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill --new)"
+ok "--new starts a fresh session"       '[ "$(jq -r .session_dir <<<"$OUT4")" != "$SDIR3" ] && [ "$(jq -r .resumed <<<"$OUT4")" = false ]'
+kill "$(cat "$(jq -r .session_dir <<<"$OUT4")/state/server.pid")" 2>/dev/null
 
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]

@@ -131,6 +131,21 @@ fi
 # keep everything this script and the server create owner-only.
 umask 077
 
+newest_unfinished_session() {
+  local d
+  while IFS= read -r d; do
+    [[ -f "$d/finished.json" ]] || { printf '%s' "$d"; return; }
+  done < <(ls -d "$1"/session-* 2>/dev/null | sort -r)
+}
+
+kill_project_servers() {
+  local pf
+  for pf in "$1"/session-*/state/server.pid; do
+    [[ -f "$pf" && "$(cat "$pf")" =~ ^[0-9]+$ ]] && kill "$(cat "$pf")" 2>/dev/null
+  done
+  sleep 0.3
+}
+
 # Generate unique session directory
 SESSION_ID="$$-$(date +%s)"
 
@@ -139,20 +154,15 @@ if [[ "$GRILL" == "true" ]]; then
     echo '{"error": "--grill requires --project-dir"}'
     exit 1
   fi
-  # A grill session outlives server restarts and context resets: resume the
-  # newest session that has no finished.json unless --new asks for a fresh one.
   GRILL_ROOT="${PROJECT_DIR}/.grill"
-  SESSION_DIR=""
-  for d in $(ls -d "$GRILL_ROOT"/session-* 2>/dev/null | sort -r); do
-    [[ -f "$d/finished.json" ]] || { SESSION_DIR="$d"; break; }
-  done
+  SESSION_DIR="$(newest_unfinished_session "$GRILL_ROOT")"
   if [[ "$GRILL_STATUS" == "true" ]]; then
     if [[ -z "$SESSION_DIR" ]]; then
       echo '{"type":"grill-status","unfinished":null}'
     else
       ROUNDS="$(ls "$SESSION_DIR"/round-*.json 2>/dev/null | wc -l | tr -d ' ')"
       ANSWERED="$(ls "$SESSION_DIR"/answers-*.json 2>/dev/null | wc -l | tr -d ' ')"
-      printf '{"type":"grill-status","unfinished":"%s","rounds":%s,"answered":%s}\n' "$SESSION_DIR" "$ROUNDS" "$ANSWERED"
+      node -e 'console.log(JSON.stringify({type: "grill-status", unfinished: process.argv[1], rounds: +process.argv[2], answered: +process.argv[3]}))' "$SESSION_DIR" "$ROUNDS" "$ANSWERED"
     fi
     exit 0
   fi
@@ -205,12 +215,9 @@ fi
 printf '%s\n' "$SERVER_ID" > "$SERVER_ID_FILE"
 chmod 600 "$SERVER_ID_FILE" 2>/dev/null || true
 
-# Kill any existing server (a grill project has one port, shared by all its sessions)
+# Kill any existing server
 if [[ "$GRILL" == "true" ]]; then
-  for pf in "$GRILL_ROOT"/session-*/state/server.pid; do
-    [[ -f "$pf" ]] && kill "$(cat "$pf")" 2>/dev/null
-  done
-  sleep 0.3
+  kill_project_servers "$GRILL_ROOT"
 fi
 if [[ -f "$PID_FILE" ]]; then
   old_pid=$(cat "$PID_FILE")
