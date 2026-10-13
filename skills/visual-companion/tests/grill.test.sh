@@ -37,6 +37,10 @@ sleep 2.5
 ok "new round triggers one notify with number and count" '[ "$(grep -c "Grill round 1 ready.*2 questions" "$W/notify.log")" = 1 ]'
 ok "page falls back to polling on connection loss" 'curl -s "$BASE/?key=$KEY" | grep -q "Connection lost"'
 ok "page renders with the key"          '[ "$(code "$BASE/?key=$KEY")" = 200 ]'
+PAGE="$(curl -s "$BASE/?key=$KEY")"
+ok "page pins marked, highlight.js and mermaid" 'grep -q "marked@[0-9.]*/" <<<"$PAGE" && grep -q "highlight.js\|cdn-release@11.9.0" <<<"$PAGE" && grep -q "mermaid@10.9.1" <<<"$PAGE" && ! grep -qE "(marked|mermaid)@(latest|[0-9]+)/" <<<"$PAGE"'
+ok "page has dark and light code themes" 'grep -q "prefers-color-scheme: dark" <<<"$PAGE" && grep -q "github-dark.min.css" <<<"$PAGE"'
+ok "page supports visual blocks and mockup classes" 'grep -q "q.visual" <<<"$PAGE" && grep -q "\.mockup-body" <<<"$PAGE"'
 ok "page rejected without the key"      '[ "$(code "$BASE/")" = 403 ]'
 ok "page rejected with a wrong key"     '[ "$(code "$BASE/?key=nope")" = 403 ]'
 ok "state rejected without the key"     '[ "$(code "$BASE/state")" = 403 ]'

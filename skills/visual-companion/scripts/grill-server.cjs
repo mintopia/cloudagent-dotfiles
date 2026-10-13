@@ -228,24 +228,71 @@ const PAGE = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Grill</title>
 <style>
-body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:1rem;color:#1d1d1f}
-.q{border:1px solid #d0d0d5;border-radius:8px;padding:1rem;margin:1rem 0}
-.q h3{margin:0 0 .5rem}.rec{background:#eef6ff;border-radius:6px;padding:.5rem .75rem;margin:.5rem 0}
-.opts label{display:block;margin:.25rem 0}textarea{width:100%;box-sizing:border-box;min-height:3.5rem;margin-top:.5rem}
-.status{color:#666;font-size:.9rem}.past{opacity:.7}button{font:inherit;padding:.5rem 1.25rem}
-@media (prefers-color-scheme:dark){body{background:#161618;color:#eee}.q{border-color:#444}.rec{background:#1c2a3a}}
-</style></head><body>
+:root{--bg:#fff;--fg:#1d1d1f;--bg2:#fff;--bg3:#e5e5e7;--border:#d0d0d5;--muted:#6e6e73;--accent:#0071e3;--rec:#eef6ff;--ok:#34c759;--err:#ff3b30;--code:#f5f5f7}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--fg:#eee;--bg2:#2d2d2f;--bg3:#3d3d3f;--border:#444;--muted:#a1a1a6;--accent:#0a84ff;--rec:#1c2a3a;--ok:#30d158;--err:#ff453a;--code:#0d1117}}
+body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:1rem;background:var(--bg);color:var(--fg)}
+.q{border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1rem 0}
+.q h3{margin:0 0 .5rem}.rec{background:var(--rec);border-radius:6px;padding:.5rem .75rem;margin:.5rem 0}
+.notes{border-left:3px solid var(--accent);padding:.1rem .9rem;margin:1rem 0;background:var(--rec);border-radius:0 6px 6px 0}
+.opts label{display:block;margin:.25rem 0}textarea{width:100%;box-sizing:border-box;min-height:3.5rem;margin-top:.5rem;background:var(--bg2);color:var(--fg);border:1px solid var(--border);border-radius:6px}
+.status{color:var(--muted);font-size:.9rem}.past{opacity:.8;margin:.5rem 0}button{font:inherit;padding:.5rem 1.25rem}
+pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.75rem;overflow-x:auto}
+pre code.hljs{padding:0;background:transparent}
+:not(pre)>code{background:var(--code);border-radius:4px;padding:.1rem .3rem}
+table{border-collapse:collapse}th,td{border:1px solid var(--border);padding:.25rem .6rem}
+.mermaid{text-align:center;margin:1rem 0}
+.mockup{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:1rem 0}
+.mockup-header{background:var(--bg3);padding:.5rem 1rem;font-size:.75rem;color:var(--muted);border-bottom:1px solid var(--border)}
+.mockup-body{padding:1.5rem}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media (max-width:700px){.split,.pros-cons{grid-template-columns:1fr}}
+.pros-cons{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+.pros,.cons{background:var(--bg2);border-radius:8px;padding:1rem}
+.pros h4{color:var(--ok);font-size:.85rem;margin-bottom:.5rem}.cons h4{color:var(--err);font-size:.85rem;margin-bottom:.5rem}
+.placeholder{background:var(--bg3);border:2px dashed var(--border);border-radius:8px;padding:2rem;text-align:center;color:var(--muted)}
+.mock-nav{background:var(--accent);color:#fff;padding:.75rem 1rem;display:flex;gap:1.5rem;font-size:.9rem}
+.mock-sidebar{background:var(--bg3);padding:1rem;min-width:180px}.mock-content{padding:1.5rem;flex:1}
+.mock-button{background:var(--accent);color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;font-size:.85rem}
+.mock-input{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:.5rem;width:100%}
+</style>
+<link rel="stylesheet" media="(prefers-color-scheme: light)" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
+<link rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+</head><body>
 <h1>Grill</h1><div class="status" id="status">Loading…</div>
 <div id="history"></div><div id="current"></div>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 <script>
 var md = function (s) { return window.marked ? window.marked.parse(String(s || '')) : '<pre>' + String(s || '').replace(/</g, '&lt;') + '</pre>'; };
 var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
-var shown = null, picks = {};
+var shown = null, picks = {}, lastHistory = null;
+var dark = window.matchMedia('(prefers-color-scheme: dark)');
+function initMermaid() { if (window.mermaid) window.mermaid.initialize({ startOnLoad: false, theme: dark.matches ? 'dark' : 'default', securityLevel: 'strict' }); }
+function enhance(root) {
+  root.querySelectorAll('pre > code').forEach(function (code) {
+    var pre = code.parentNode;
+    if (/language-mermaid/.test(code.className)) {
+      var d = document.createElement('div');
+      d.className = 'mermaid'; d.setAttribute('data-src', code.textContent); d.textContent = code.textContent;
+      pre.parentNode.replaceChild(d, pre);
+    } else if (window.hljs) window.hljs.highlightElement(code);
+  });
+  renderMermaid(root);
+}
+function renderMermaid(root) {
+  if (!window.mermaid) return;
+  var nodes = root.querySelectorAll('.mermaid');
+  nodes.forEach(function (n) { n.removeAttribute('data-processed'); n.textContent = n.getAttribute('data-src'); });
+  if (nodes.length) window.mermaid.run({ nodes: nodes }).catch(function () {});
+}
+initMermaid();
+dark.addEventListener('change', function () { initMermaid(); renderMermaid(document); });
 var LABEL = { 'waiting-for-agent': 'Agent working: no Round yet…', 'agent-working': 'Answered. Agent working…', 'round-ready': 'Waiting for you: Round ready' };
 
 function questionHtml(q) {
   var h = '<div class="q" data-q="' + esc(q.id) + '"><h3>' + esc(q.title) + '</h3><div>' + md(q.body) + '</div>';
+  if (q.visual) h += '<div class="mockup"><div class="mockup-header">Visual</div><div class="mockup-body">' + q.visual + '</div></div>';
   if (q.recommendation) h += '<div class="rec"><strong>Recommended:</strong> ' + md(q.recommendation) + '</div>';
   h += '<div class="opts">';
   (q.options || []).forEach(function (o) {
@@ -259,10 +306,11 @@ function questionHtml(q) {
 function renderCurrent(r) {
   var el = document.getElementById('current');
   var h = '<h2>Round ' + r.round + (r.title ? ': ' + esc(r.title) : '') + '</h2>';
-  if (r.notes) h += '<div>' + md(r.notes) + '</div>';
+  if (r.notes) h += '<div class="notes">' + md(r.notes) + '</div>';
   (r.questions || []).forEach(function (q) { h += questionHtml(q); });
   h += '<textarea id="comment" placeholder="Round comment (optional)"></textarea><p><button id="submit" disabled>Submit</button></p>';
   el.innerHTML = h;
+  enhance(el);
   picks = {};
   el.onclick = function (e) {
     var act = e.target.getAttribute && e.target.getAttribute('data-act');
@@ -309,9 +357,17 @@ function poll() {
   fetch('/state', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (s) {
     document.getElementById('status').textContent = LABEL[s.status] || s.status;
     var last = s.rounds[s.rounds.length - 1];
-    document.getElementById('history').innerHTML = s.rounds.filter(function (r) { return r.answers; }).map(function (r) {
-      return '<details class="past"><summary>Round ' + r.round.round + ' (answered)</summary><pre>' + esc(JSON.stringify(r.answers.answers, null, 2)) + '</pre></details>';
+    var hist = s.rounds.filter(function (r) { return r.answers; }).map(function (r) {
+      return '<details class="past"><summary>Round ' + r.round.round + (r.round.title ? ': ' + esc(r.round.title) : '') + ' (answered)</summary>' +
+        (r.round.notes ? '<div class="notes">' + md(r.round.notes) + '</div>' : '') +
+        '<pre>' + esc(JSON.stringify(r.answers.answers, null, 2)) + '</pre></details>';
     }).join('');
+    if (hist !== lastHistory) {
+      lastHistory = hist;
+      var hEl = document.getElementById('history');
+      hEl.innerHTML = hist;
+      enhance(hEl);
+    }
     if (last && !last.answers && shown !== last.round.round) { shown = last.round.round; renderCurrent(last.round); }
     if (last && last.answers) { document.getElementById('current').innerHTML = ''; shown = null; }
   }).catch(function () { document.getElementById('status').textContent = 'Connection lost. Retrying…'; });

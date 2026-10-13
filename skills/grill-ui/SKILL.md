@@ -42,7 +42,9 @@ Write `round-NNN.json` (zero-padded, next number) into `session_dir` with the fi
 }
 ```
 
-`options` and `recommendation` are optional. Question ids are unique within a Round.
+`options`, `recommendation` and `visual` are optional. Question ids are unique within a Round.
+
+`notes`, `body` and `recommendation` render as Markdown, including fenced code, ` ```diff ` blocks and ` ```mermaid ` diagrams, and file or call trees as plain fenced blocks. `visual` is an HTML fragment shown under the body inside a mockup frame; use the mockup classes from `visual-companion` (`.split`, `.pros-cons`, `.placeholder`, `.mock-nav`, `.mock-button` and so on). Use it only for UI or layout choices. Notes stay visible alongside the Round after it is answered.
 
 The server sends a `cloudagent notify` for each new Round (number and question count) by itself. Print only one terminal line per Round: the round number, question count and URL. Do not repeat the questions in the terminal.
 
