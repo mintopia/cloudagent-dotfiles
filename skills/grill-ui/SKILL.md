@@ -102,6 +102,26 @@ After folding in each Submission, append the decisions it settled to `decision_l
 
 Only `grill-with-docs-ui` uses this. When it edits glossary or ADR files it writes their repo-relative paths as a JSON array to `docs-changed.json` in `session_dir`. The summary panel lists them and hides the section when the array is empty or the file is absent, so it never shows in `grill-me-ui`.
 
+## Shared understanding and end actions
+
+When the frontier is empty, post a final Round with `"type": "shared-understanding"` instead of questions. `summary` (Markdown) restates every decision once; `notes` is optional.
+
+```json
+{"round": 7, "type": "shared-understanding", "title": "Wrap up", "summary": "- Store: files\n- ..."}
+```
+
+The page shows the summary with four actions: To spec, To tickets, Keep grilling, End session. The Submission has no answers; it carries the choice:
+
+```json
+{"round": 7, "answers": [], "action": "to-spec", "note": "", "comment": "", "source": "browser", "submitted_at": "..."}
+```
+
+`action` is `to-spec`, `to-tickets`, `keep-grilling` or `end`. `keep-grilling` always has a non-empty `note`: dig into it in the next Round, then post a new Shared understanding Round when the frontier is empty again. If the user answers in the terminal, write `answers-NNN.json` with `action` (and `note`) yourself.
+
+- `to-spec`: invoke the Skill tool with `to-spec` at runtime (never copy it). Post its seam check as a normal `questions` Round and wait for the Submission as usual. Once the spec is published, write `done.json` with `{"spec_url": "<url>", "title": "<spec title>"}` into `session_dir`; the page then shows a Done page linking to it.
+- `to-tickets`: invoke the Skill tool with `to-tickets`.
+- `end`: go to Finish.
+
 ## Finish
 
-When the frontier is empty, write `finished.json` (e.g. `{"finished_at": "<ISO time>"}`) into `session_dir` so the session is no longer offered for resume, say so in the terminal and summarise the decisions. Stop the server only if asked: `~/.claude/skills/visual-companion/scripts/stop-companion.sh <session_dir>`. The forward stays so the URL is stable.
+When the frontier is empty, write `finished.json` after any hand-off completes (e.g. `{"finished_at": "<ISO time>"}`) into `session_dir` so the session is no longer offered for resume, say so in the terminal and summarise the decisions. Stop the server only if asked: `~/.claude/skills/visual-companion/scripts/stop-companion.sh <session_dir>`. The forward stays so the URL is stable.

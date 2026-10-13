@@ -28,3 +28,10 @@ _Avoid_: Commentary, log
 **Docs changed**:
 The glossary and ADR files a grill-with-docs session created or edited, listed in the summary panel and empty (hidden) otherwise.
 _Avoid_: Changelog
+
+**Shared understanding**:
+The final Round of a grill session, posted once the frontier is empty. It summarises every decision and offers the end actions: To spec, To tickets, Keep grilling, End session.
+_Avoid_: Summary page, wrap-up
+
+**Done page**:
+The page shown after the spec is published (`done.json`), linking to it.
