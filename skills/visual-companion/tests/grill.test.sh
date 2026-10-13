@@ -15,6 +15,10 @@ W="$(mktemp -d)"
 trap 'for p in "$W"/*/.grill/session-*/state/server.pid; do [ -f "$p" ] && kill "$(cat "$p")" 2>/dev/null; done; rm -rf "$W"' EXIT
 P="$W/proj"; mkdir -p "$P"; git -C "$P" init -q
 
+mkdir -p "$W/bin"
+printf '#!/bin/sh\necho "$@" >> "%s/notify.log"\n' "$W" > "$W/bin/cloudagent"; chmod +x "$W/bin/cloudagent"
+export PATH="$W/bin:$PATH"
+
 OUT="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill)"
 URL="$(jq -r .url <<<"$OUT")"; PORT="$(jq -r .port <<<"$OUT")"
 SDIR="$(jq -r .session_dir <<<"$OUT")"
@@ -29,6 +33,9 @@ cat > "$SDIR/round-001.json" <<'JSON'
   {"id":"q2","title":"Name it?","body":"Naming","recommendation":"yes"}]}
 JSON
 
+sleep 2.5
+ok "new round triggers one notify with number and count" '[ "$(grep -c "Grill round 1 ready.*2 questions" "$W/notify.log")" = 1 ]'
+ok "page falls back to polling on connection loss" 'curl -s "$BASE/?key=$KEY" | grep -q "Connection lost"'
 ok "page renders with the key"          '[ "$(code "$BASE/?key=$KEY")" = 200 ]'
 ok "page rejected without the key"      '[ "$(code "$BASE/")" = 403 ]'
 ok "page rejected with a wrong key"     '[ "$(code "$BASE/?key=nope")" = 403 ]'
@@ -40,21 +47,30 @@ SUB='{"round":1,"answers":[{"id":"q1","kind":"option","option":"a","text":"becau
 ok "submit with the key succeeds"       '[ "$(code -X POST -H "x-grill-key: $KEY" -d "$SUB" "$BASE/submit")" = 200 ]'
 ok "answers file has the expected shape" 'jq -e ".round==1 and .comment==\"ok\" and .answers[0]=={id:\"q1\",kind:\"option\",option:\"a\",text:\"because\"} and .answers[1]=={id:\"q2\",kind:\"accept\"} and (.submitted_at|type)==\"string\"" "$SDIR/answers-001.json" >/dev/null'
 ok "second submit conflicts"            '[ "$(code -X POST -H "x-grill-key: $KEY" -d "$SUB" "$BASE/submit")" = 409 ]'
+ok "browser submission is tagged"       '[ "$(jq -r .source "$SDIR/answers-001.json")" = browser ]'
 ok "state moves to agent-working"       '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r .status)" = agent-working ]'
 
 cat > "$SDIR/round-002.json" <<'JSON'
 {"round":2,"type":"questions","questions":[{"id":"q1","title":"More?","body":"b"}]}
 JSON
+printf '%s' '{"round":2,"answers":[{"id":"q1","kind":"text","text":"typed"}],"comment":"","source":"terminal","submitted_at":"x"}' > "$SDIR/answers-002.json"
+ok "terminal answers show as answered"  '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r ".status + .rounds[1].answers.source")" = agent-workingterminal ]'
+rm "$SDIR/answers-002.json"
 ok "incomplete submission is rejected"  '[ "$(code -X POST -H "x-grill-key: $KEY" -d "{\"round\":2,\"answers\":[]}" "$BASE/submit")" = 400 ]'
 ok "unknown round is rejected"          '[ "$(code -X POST -H "x-grill-key: $KEY" -d "{\"round\":9,\"answers\":[]}" "$BASE/submit")" = 404 ]'
 ok "rejected submission writes nothing" '[ ! -e "$SDIR/answers-002.json" ]'
 
 ok "session files are git-excluded"     'grep -qxF ".grill/" "$P/.git/info/exclude"'
 
+sleep 1.5
+ok "round 2 notified singular"          'grep -q "Grill round 2 ready.*1 question " "$W/notify.log"'
 kill "$(cat "$SDIR/state/server.pid")"; sleep 1
 OUT2="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill)"
 ok "restart keeps port and key"         '[ "$(jq -r .url <<<"$OUT2")" = "$URL" ]'
 ok "restart keeps the session history"  '[ "$(curl -s "$BASE/state?key=$KEY" | jq ".rounds|length")" = 2 ]'
+
+sleep 2.5
+ok "restart does not re-notify"         '[ "$(wc -l < "$W/notify.log")" = 2 ]'
 
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]

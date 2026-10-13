@@ -5,6 +5,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execFile } = require('child_process');
 
 const SESSION_DIR = process.env.BRAINSTORM_DIR || '/tmp/grill';
 const STATE_DIR = path.join(SESSION_DIR, 'state');
@@ -103,6 +104,26 @@ const sendJson = (res, status, obj) => send(res, status, 'application/json', JSO
 const FORBIDDEN = '<!DOCTYPE html><meta charset="utf-8"><title>Key required</title>' +
   '<h1>Session key required</h1><p>Open the full URL including <code>?key=…</code>.</p>';
 
+const NOTIFIED_FILE = path.join(STATE_DIR, 'notified');
+
+function notifiedRounds() {
+  return new Set(readFile(NOTIFIED_FILE).split('\n').filter(Boolean).map(Number));
+}
+
+function notifyNewRounds() {
+  const seen = notifiedRounds();
+  for (const n of roundNumbers()) {
+    if (seen.has(n)) continue;
+    const round = readJson(roundFile(n));
+    if (!round) continue;
+    seen.add(n);
+    fs.appendFileSync(NOTIFIED_FILE, n + '\n');
+    const count = (round.questions || []).length;
+    execFile('cloudagent', ['notify', '--title', `Grill round ${n} ready`,
+      '--body', `${count} question${count === 1 ? '' : 's'} waiting for you`], () => {});
+  }
+}
+
 let lastActivity = Date.now();
 
 const server = http.createServer((req, res) => {
@@ -144,6 +165,7 @@ function handleSubmit(req, res) {
         return out;
       }),
       comment: typeof sub.comment === 'string' ? sub.comment : '',
+      source: 'browser',
       submitted_at: new Date().toISOString()
     };
     try {
@@ -186,6 +208,8 @@ pickPort(port => {
     round_pattern: path.join(SESSION_DIR, 'round-NNN.json'),
     answers_pattern: path.join(SESSION_DIR, 'answers-NNN.json')
   };
+  notifyNewRounds();
+  setInterval(notifyNewRounds, 1000).unref();
   writePrivate(path.join(STATE_DIR, 'server-info'), JSON.stringify(info) + '\n');
   try { fs.unlinkSync(path.join(STATE_DIR, 'server-stopped')); } catch (e) { /* none */ }
   console.log(JSON.stringify(info));
@@ -218,7 +242,7 @@ body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:1r
 var md = function (s) { return window.marked ? window.marked.parse(String(s || '')) : '<pre>' + String(s || '').replace(/</g, '&lt;') + '</pre>'; };
 var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
 var shown = null, picks = {};
-var LABEL = { 'waiting-for-agent': 'Waiting for the agent…', 'agent-working': 'Submitted. The agent is working…', 'round-ready': 'Round ready' };
+var LABEL = { 'waiting-for-agent': 'Agent working: no Round yet…', 'agent-working': 'Answered. Agent working…', 'round-ready': 'Waiting for you: Round ready' };
 
 function questionHtml(q) {
   var h = '<div class="q" data-q="' + esc(q.id) + '"><h3>' + esc(q.title) + '</h3><div>' + md(q.body) + '</div>';
@@ -290,7 +314,7 @@ function poll() {
     }).join('');
     if (last && !last.answers && shown !== last.round.round) { shown = last.round.round; renderCurrent(last.round); }
     if (last && last.answers) { document.getElementById('current').innerHTML = ''; shown = null; }
-  }).catch(function () {});
+  }).catch(function () { document.getElementById('status').textContent = 'Connection lost. Retrying…'; });
 }
 poll(); setInterval(poll, 2000);
 </script></body></html>`;
