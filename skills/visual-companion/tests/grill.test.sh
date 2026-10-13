@@ -90,6 +90,18 @@ ok "state shows appended decision log"  'curl -s "$BASE/state?key=$KEY" | jq -e 
 ST="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill --grill-status)"
 ok "status offers the unfinished session" '[ "$(jq -r .unfinished <<<"$ST")" = "$SDIR" ] && [ "$(jq -r .rounds <<<"$ST")" = 2 ] && [ "$(jq -r .answered <<<"$ST")" = 1 ]'
 
+cat > "$SDIR/round-003.json" <<'JSON'
+{"round":3,"type":"shared-understanding","title":"Wrap up","summary":"- chose **files**"}
+JSON
+ok "page has end actions and keep-grilling note" 'PAGE="$(curl -s "$BASE/?key=$KEY")"; for m in shared-understanding "To spec" "To tickets" "Keep grilling" "End session" keep-note; do grep -q -- "$m" <<<"$PAGE" || exit 1; done'
+ok "shared round rejects an unknown action" '[ "$(code -X POST -H "x-grill-key: $KEY" -d "{\"round\":3,\"action\":\"nope\"}" "$BASE/submit")" = 400 ]'
+ok "keep-grilling without a note is rejected" '[ "$(code -X POST -H "x-grill-key: $KEY" -d "{\"round\":3,\"action\":\"keep-grilling\",\"note\":\" \"}" "$BASE/submit")" = 400 ]'
+ok "keep-grilling with a note is recorded" '[ "$(code -X POST -H "x-grill-key: $KEY" -d "{\"round\":3,\"action\":\"keep-grilling\",\"note\":\"dig into auth\"}" "$BASE/submit")" = 200 ] && jq -e ".action==\"keep-grilling\" and .note==\"dig into auth\" and .answers==[]" "$SDIR/answers-003.json" >/dev/null'
+ok "state has no done page yet"          '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r .done)" = null ]'
+echo '{"spec_url":"https://example.com/spec","title":"The spec"}' > "$SDIR/done.json"
+ok "state carries the done page link"    '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r .done.spec_url)" = https://example.com/spec ]'
+rm "$SDIR/done.json"
+
 echo '{"finished_at":"now"}' > "$SDIR/finished.json"
 ok "finished session is not offered"    '[ "$(jq -r .unfinished <<<"$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill --grill-status)")" = null ]'
 ok "state reports finished"             '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r .status)" = finished ]'

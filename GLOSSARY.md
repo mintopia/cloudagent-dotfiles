@@ -24,3 +24,10 @@ _Avoid_: History, transcript
 **Agent notes**:
 Agent output attached to a round that isn't a question: findings, sub-agent reports, glossary and ADR changes.
 _Avoid_: Commentary, log
+
+**Shared understanding**:
+The final Round of a grill session, posted once the frontier is empty. It summarises every decision and offers the end actions: To spec, To tickets, Keep grilling, End session.
+_Avoid_: Summary page, wrap-up
+
+**Done page**:
+The page shown after the spec is published (`done.json`), linking to it.

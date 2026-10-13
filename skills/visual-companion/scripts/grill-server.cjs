@@ -77,12 +77,22 @@ function snapshot() {
   const latest = rounds[rounds.length - 1];
   const status = !latest ? 'waiting-for-agent' : latest.answers ? 'agent-working' : 'round-ready';
   const finished = readJson(path.join(SESSION_DIR, 'finished.json'));
-  return { status: finished ? 'finished' : status, rounds, decisions: readFile(path.join(SESSION_DIR, 'decisions.md')) };
+  return { status: finished ? 'finished' : status, rounds, decisions: readFile(path.join(SESSION_DIR, 'decisions.md')),
+    done: readJson(path.join(SESSION_DIR, 'done.json')) };
 }
 
 const ANSWER_KINDS = ['accept', 'option', 'skip', 'text'];
+const END_ACTIONS = ['to-spec', 'to-tickets', 'keep-grilling', 'end'];
+
+function validateSharedUnderstanding(sub) {
+  if (!END_ACTIONS.includes(sub.action)) return 'unknown end action';
+  if (sub.note !== undefined && typeof sub.note !== 'string') return 'note must be a string';
+  if (sub.action === 'keep-grilling' && !(sub.note || '').trim()) return 'keep-grilling needs a note';
+  return null;
+}
 
 function validateSubmission(sub, round) {
+  if (round.type === 'shared-understanding') return sub && typeof sub === 'object' ? validateSharedUnderstanding(sub) : 'invalid submission';
   if (!sub || typeof sub !== 'object' || !Array.isArray(sub.answers)) return 'answers must be an array';
   const ids = new Set((round.questions || []).map(q => q.id));
   for (const a of sub.answers) {
@@ -157,9 +167,10 @@ function handleSubmit(req, res) {
     if (!round) return sendJson(res, 404, { error: 'unknown round' });
     const problem = validateSubmission(sub, round);
     if (problem) return sendJson(res, 400, { error: problem });
+    const shared = round.type === 'shared-understanding';
     const record = {
       round: n,
-      answers: sub.answers.map(a => {
+      answers: shared ? [] : sub.answers.map(a => {
         const out = { id: a.id, kind: a.kind };
         if (a.kind === 'option') out.option = a.option;
         if (a.text) out.text = a.text;
@@ -169,6 +180,10 @@ function handleSubmit(req, res) {
       source: 'browser',
       submitted_at: new Date().toISOString()
     };
+    if (shared) {
+      record.action = sub.action;
+      record.note = (sub.note || '').trim();
+    }
     try {
       // 'wx' makes a double-submit a conflict instead of clobbering the first.
       fs.writeFileSync(answersFile(n), JSON.stringify(record, null, 2) + '\n', { flag: 'wx' });
@@ -359,7 +374,46 @@ function renderPicked(q) {
   el.className = 'q' + (p === 'skip' ? ' skipped' : p ? ' settled' : '');
 }
 
+var END_LABEL = { 'to-spec': 'To spec', 'to-tickets': 'To tickets', 'keep-grilling': 'Keep grilling', 'end': 'End session' };
+
+function renderShared(r) {
+  var el = document.getElementById('current');
+  var h = '<h2>Shared understanding' + (r.title ? ': ' + esc(r.title) : '') + '</h2>';
+  if (r.notes) h += '<div class="notes">' + md(r.notes) + '</div>';
+  h += '<div>' + md(r.summary) + '</div><div class="bar" id="end-actions">';
+  Object.keys(END_LABEL).forEach(function (k) { h += '<button data-end="' + k + '">' + END_LABEL[k] + '</button>'; });
+  h += '</div><div id="keep" hidden><textarea id="keep-note" placeholder="What should the next Round dig into?"></textarea>' +
+    '<p><button id="keep-send" disabled>Send and keep grilling</button></p></div>';
+  el.innerHTML = h;
+  enhance(el);
+  current = null;
+  var note = document.getElementById('keep-note'), send = document.getElementById('keep-send');
+  note.oninput = function () { send.disabled = !note.value.trim(); };
+  send.onclick = function () { sendEnd(r, 'keep-grilling', note.value); };
+  document.getElementById('end-actions').onclick = function (e) {
+    var act = e.target.getAttribute && e.target.getAttribute('data-end');
+    if (!act) return;
+    if (act === 'keep-grilling') { document.getElementById('keep').hidden = false; note.focus(); return; }
+    sendEnd(r, act, '');
+  };
+  renderProgress();
+}
+
+function sendEnd(r, action, note) {
+  post({ round: r.round, action: action, note: note });
+}
+
+function renderDone(d) {
+  var el = document.getElementById('current');
+  var link = d.spec_url ? '<p><a href="' + esc(d.spec_url) + '">' + esc(d.title || d.spec_url) + '</a></p>' : '';
+  var key = JSON.stringify(d);
+  if (el.getAttribute('data-done') === key) return;
+  el.setAttribute('data-done', key);
+  el.innerHTML = '<h2>Done</h2><p>The spec is published.</p>' + link;
+}
+
 function renderCurrent(r) {
+  if (r.type === 'shared-understanding') return renderShared(r);
   var el = document.getElementById('current');
   var h = '<h2>Round ' + r.round + (r.title ? ': ' + esc(r.title) : '') + '</h2>';
   if (r.notes) h += '<div class="notes">' + md(r.notes) + '</div>';
@@ -481,8 +535,12 @@ function submit(r) {
     var t = textOf(q.id); if (t) a.text = t;
     return a;
   });
+  post({ round: r.round, answers: answers, comment: document.getElementById('comment').value });
+}
+
+function post(payload) {
   fetch('/submit', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ round: r.round, answers: answers, comment: document.getElementById('comment').value }) })
+    body: JSON.stringify(payload) })
     .then(function (res) { if (!res.ok) throw new Error(res.status); poll(); })
     .catch(function (e) { document.getElementById('status').textContent = 'Submit failed: ' + e.message; });
 }
@@ -503,6 +561,7 @@ function poll() {
       enhance(dEl);
     }
     if (last && !last.answers && shown !== last.round.round) { shown = last.round.round; renderCurrent(last.round); }
+    if (s.done) { renderDone(s.done); shown = null; current = null; renderProgress(); return; }
     if (!last || last.answers) { document.getElementById('current').innerHTML = ''; shown = null; current = null; renderProgress(); }
   }).catch(function () { document.getElementById('status').textContent = 'Connection lost. Retrying…'; });
 }
