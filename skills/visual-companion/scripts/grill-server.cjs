@@ -95,7 +95,30 @@ function validateSharedUnderstanding(sub) {
   return null;
 }
 
+const TICKET_ACTIONS = ['approve', 'merge', 'split', 'note'];
+const GRANULARITY = ['right', 'too-coarse', 'too-fine'];
+
+function validateTickets(sub, round) {
+  if (!sub || typeof sub !== 'object' || !Array.isArray(sub.tickets)) return 'tickets must be an array';
+  const ids = new Set((round.tickets || []).map(t => t.id));
+  const seen = new Set();
+  for (const t of sub.tickets) {
+    if (!t || !ids.has(t.id)) return 'unknown ticket id';
+    if (seen.has(t.id)) return `ticket ${t.id} decided twice`;
+    seen.add(t.id);
+    if (!TICKET_ACTIONS.includes(t.action)) return 'invalid ticket action';
+    if (t.note !== undefined && typeof t.note !== 'string') return 'note must be a string';
+    if (t.action === 'merge' && (!ids.has(t.with) || t.with === t.id)) return 'merge needs another ticket';
+    if ((t.action === 'split' || t.action === 'note') && !(t.note || '').trim()) return `${t.action} needs a note`;
+  }
+  for (const id of ids) if (!seen.has(id)) return `ticket ${id} has no decision`;
+  if (!GRANULARITY.includes(sub.granularity)) return 'invalid granularity';
+  if (sub.granularity_note !== undefined && typeof sub.granularity_note !== 'string') return 'granularity_note must be a string';
+  return null;
+}
+
 function validateSubmission(sub, round) {
+  if (round.type === 'tickets') return validateTickets(sub, round);
   if (round.type === 'shared-understanding') return sub && typeof sub === 'object' ? validateSharedUnderstanding(sub) : 'invalid submission';
   if (!sub || typeof sub !== 'object' || !Array.isArray(sub.answers)) return 'answers must be an array';
   const ids = new Set((round.questions || []).map(q => q.id));
@@ -133,9 +156,11 @@ function notifyNewRounds() {
     if (!round) continue;
     seen.add(n);
     fs.appendFileSync(NOTIFIED_FILE, n + '\n');
-    const count = (round.questions || []).length;
+    const isTickets = round.type === 'tickets';
+    const count = ((isTickets ? round.tickets : round.questions) || []).length;
+    const noun = isTickets ? 'ticket' : 'question';
     execFile('cloudagent', ['notify', '--title', `Grill round ${n} ready`,
-      '--body', `${count} question${count === 1 ? '' : 's'} waiting for you`], () => {});
+      '--body', `${count} ${noun}${count === 1 ? '' : 's'} waiting for you`], () => {});
   }
 }
 
@@ -172,9 +197,10 @@ function handleSubmit(req, res) {
     const problem = validateSubmission(sub, round);
     if (problem) return sendJson(res, 400, { error: problem });
     const shared = round.type === 'shared-understanding';
+    const tickets = round.type === 'tickets';
     const record = {
       round: n,
-      answers: shared ? [] : sub.answers.map(a => {
+      answers: shared || tickets ? [] : sub.answers.map(a => {
         const out = { id: a.id, kind: a.kind };
         if (a.kind === 'option') out.option = a.option;
         if (a.text) out.text = a.text;
@@ -184,6 +210,17 @@ function handleSubmit(req, res) {
       source: 'browser',
       submitted_at: new Date().toISOString()
     };
+    if (tickets) {
+      record.tickets = sub.tickets.map(t => {
+        const out = { id: t.id, action: t.action };
+        if (t.action === 'merge') out.with = t.with;
+        if ((t.note || '').trim()) out.note = t.note.trim();
+        return out;
+      });
+      record.granularity = sub.granularity;
+      record.granularity_note = (sub.granularity_note || '').trim();
+      record.approved = record.tickets.every(t => t.action === 'approve') && sub.granularity === 'right';
+    }
     if (shared) {
       record.action = sub.action;
       record.note = (sub.note || '').trim();
@@ -407,17 +444,112 @@ function sendEnd(r, action, note) {
   post({ round: r.round, action: action, note: note });
 }
 
+function safeUrl(u) { return /^https?:\\/\\//i.test(String(u)) ? esc(u) : '#'; }
+
 function renderDone(d) {
   var el = document.getElementById('current');
-  var link = d.spec_url ? '<p><a href="' + esc(d.spec_url) + '">' + esc(d.title || d.spec_url) + '</a></p>' : '';
   var key = JSON.stringify(d);
   if (el.getAttribute('data-done') === key) return;
   el.setAttribute('data-done', key);
-  el.innerHTML = '<h2>Done</h2><p>The spec is published.</p>' + link;
+  var h = '<h2>Done</h2>';
+  if (d.spec_url || !Array.isArray(d.issues)) {
+    h += '<p>The spec is published.</p>' + (d.spec_url ? '<p><a href="' + safeUrl(d.spec_url) + '">' + esc(d.title || d.spec_url) + '</a></p>' : '');
+  }
+  if (Array.isArray(d.issues)) {
+    h += '<p>The tickets are published.</p><ul>' + d.issues.map(function (i) {
+      return '<li><a href="' + safeUrl(i.url) + '">' + esc(i.title || i.url) + '</a></li>';
+    }).join('') + '</ul>';
+  }
+  el.innerHTML = h;
+}
+
+var T_ACTIONS = { approve: 'Approve', merge: 'Merge with…', split: 'Split', note: 'Note' };
+var GRAN = { right: 'About right', 'too-coarse': 'Too coarse (split more)', 'too-fine': 'Too fine (merge more)' };
+
+function ticketGraph(ts) {
+  var idx = {};
+  ts.forEach(function (t, i) { idx[t.id] = i; });
+  var lines = ['graph TD'];
+  ts.forEach(function (t, i) { lines.push('  n' + i + '["' + String(t.title).replace(/["<>&#\\n]/g, ' ') + '"]'); });
+  ts.forEach(function (t, i) {
+    (t.blocked_by || []).forEach(function (b) { if (idx[b] !== undefined) lines.push('  n' + idx[b] + ' --> n' + i); });
+  });
+  return lines.join('\\n');
+}
+
+function ticketHtml(t, ts) {
+  var titles = {};
+  ts.forEach(function (x) { titles[x.id] = x.title; });
+  var blockers = (t.blocked_by || []).map(function (b) { return esc(titles[b] || b); });
+  var h = '<div class="q tk" id="tk-' + esc(t.id) + '" data-t="' + esc(t.id) + '"><h3>' + esc(t.title) + '</h3>' +
+    '<div class="status">Blocked by: ' + (blockers.length ? blockers.join(', ') : 'none') + '</div>' +
+    '<div>' + md(t.delivers) + '</div><div class="opts">';
+  Object.keys(T_ACTIONS).forEach(function (k) {
+    h += '<label><input type="radio" name="ta-' + esc(t.id) + '" value="' + k + '"> ' + T_ACTIONS[k] + '</label>';
+  });
+  h += '</div><select class="merge-with" hidden><option value="">Merge with…</option>';
+  ts.forEach(function (x) { if (x.id !== t.id) h += '<option value="' + esc(x.id) + '">' + esc(x.title) + '</option>'; });
+  return h + '</select><textarea placeholder="Note (required for Split and Note)"></textarea></div>';
+}
+
+function ticketDecision(el) {
+  var radio = el.querySelector('input:checked');
+  if (!radio) return null;
+  var d = { id: el.getAttribute('data-t'), action: radio.value }, note = el.querySelector('textarea').value.trim();
+  if (d.action === 'merge') d.with = el.querySelector('select').value;
+  if (note) d.note = note;
+  return d;
+}
+
+function ticketsReady() {
+  var els = document.querySelectorAll('#current .tk'), n = 0;
+  els.forEach(function (el) {
+    var d = ticketDecision(el);
+    if (!d) return;
+    if (d.action === 'merge' && !d.with) return;
+    if ((d.action === 'split' || d.action === 'note') && !d.note) return;
+    n++;
+  });
+  return { done: n, total: els.length, ok: n === els.length && !!document.querySelector('#current input[name="gran"]:checked') };
+}
+
+function renderTickets(r) {
+  var el = document.getElementById('current'), ts = r.tickets || [];
+  var h = '<h2>Tickets: Round ' + r.round + (r.title ? ': ' + esc(r.title) : '') + '</h2>';
+  if (r.notes) h += '<div class="notes">' + md(r.notes) + '</div>';
+  h += '<div class="mermaid" id="tgraph"></div>';
+  ts.forEach(function (t) { h += ticketHtml(t, ts); });
+  h += '<div class="q"><h3>Granularity</h3><div>' + esc(r.granularity_question || 'Is this the right size for the tickets?') + '</div><div class="opts">';
+  Object.keys(GRAN).forEach(function (k) { h += '<label><input type="radio" name="gran" value="' + k + '"> ' + GRAN[k] + '</label>'; });
+  h += '</div><textarea id="gran-note" placeholder="Granularity note (optional)"></textarea></div>';
+  h += '<p><button id="tsubmit" disabled>Submit</button> <span class="status" id="submit-hint"></span></p>';
+  el.innerHTML = h;
+  el.querySelector('#tgraph').setAttribute('data-src', ticketGraph(ts));
+  enhance(el);
+  current = null;
+  function check() {
+    el.querySelectorAll('.tk').forEach(function (c) {
+      var d = ticketDecision(c);
+      c.querySelector('select').hidden = !(d && d.action === 'merge');
+    });
+    var s = ticketsReady();
+    document.getElementById('tsubmit').disabled = !s.ok;
+    document.getElementById('submit-hint').textContent = s.ok ? '' : 'Decide ' + (s.total - s.done) + ' ticket(s) and the granularity to submit';
+  }
+  el.oninput = check; el.onchange = check;
+  document.getElementById('tsubmit').onclick = function () {
+    var payload = { round: r.round, tickets: [], granularity: el.querySelector('input[name="gran"]:checked').value,
+      granularity_note: document.getElementById('gran-note').value };
+    el.querySelectorAll('.tk').forEach(function (c) { payload.tickets.push(ticketDecision(c)); });
+    post(payload);
+  };
+  check();
+  renderProgress();
 }
 
 function renderCurrent(r) {
   if (r.type === 'shared-understanding') return renderShared(r);
+  if (r.type === 'tickets') return renderTickets(r);
   var el = document.getElementById('current');
   var h = '<h2>Round ' + r.round + (r.title ? ': ' + esc(r.title) : '') + '</h2>';
   if (r.notes) h += '<div class="notes">' + md(r.notes) + '</div>';
@@ -472,7 +604,11 @@ function counts() {
 
 function renderProgress() {
   var el = document.getElementById('progress');
-  if (!current) { el.innerHTML = '<h2>Progress</h2><div>No open Round.</div>'; return; }
+  if (!current) {
+    var open = document.querySelector('#current .tk');
+    el.innerHTML = '<h2>Progress</h2><div>' + (open ? 'Tickets Round open. Decide every ticket and the granularity.' : 'No open Round.') + '</div>';
+    return;
+  }
   var c = counts();
   var h = '<h2>Round ' + current.round + '</h2><div class="counts"><span><b>' + c.answered + '</b> answered</span><span><b>' +
     c.skipped + '</b> skipped</span><span><b>' + c.remaining.length + '</b> remaining</span></div>';
@@ -507,6 +643,14 @@ function renderHistory() {
     var h = '<details class="past"><summary>Round ' + r.round.round + (r.round.title ? ': ' + esc(r.round.title) : '') + ' (answered' + src + ')</summary>';
     if (r.round.notes) h += '<div class="notes">' + md(r.round.notes) + '</div>';
     h += '<ul>';
+    var tt = {};
+    (r.round.tickets || []).forEach(function (t) { tt[t.id] = t.title; });
+    (r.answers.tickets || []).forEach(function (t) {
+      h += '<li><strong>' + esc(tt[t.id] || t.id) + '</strong>: ' + esc(T_ACTIONS[t.action] || t.action) +
+        (t.with ? ' ' + esc(tt[t.with] || t.with) : '') + (t.note ? ' (' + esc(t.note) + ')' : '') + '</li>';
+    });
+    if (r.answers.granularity) h += '<li><strong>Granularity</strong>: ' + esc(GRAN[r.answers.granularity] || r.answers.granularity) +
+      (r.answers.granularity_note ? ' (' + esc(r.answers.granularity_note) + ')' : '') + '</li>';
     (r.answers.answers || []).forEach(function (a) {
       var q = byId[a.id] || { title: a.id };
       h += '<li><strong>' + esc(q.title) + '</strong>: ' + esc(describe(q, a)) + '</li>';

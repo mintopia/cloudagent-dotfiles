@@ -119,8 +119,28 @@ The page shows the summary with four actions: To spec, To tickets, Keep grilling
 `action` is `to-spec`, `to-tickets`, `keep-grilling` or `end`. `keep-grilling` always has a non-empty `note`: dig into it in the next Round, then post a new Shared understanding Round when the frontier is empty again. If the user answers in the terminal, write `answers-NNN.json` with `action` (and `note`) yourself.
 
 - `to-spec`: invoke the Skill tool with `to-spec` at runtime (never copy it). Post its seam check as a normal `questions` Round and wait for the Submission as usual. Once the spec is published, write `done.json` with `{"spec_url": "<url>", "title": "<spec title>"}` into `session_dir`; the page then shows a Done page linking to it.
-- `to-tickets`: invoke the Skill tool with `to-tickets`.
+- `to-tickets`: invoke the Skill tool with `to-tickets` at runtime (never copy it). Do not publish yet: post its proposed breakdown as a Tickets Round (below) and iterate until approved.
 - `end`: go to Finish.
+
+## Tickets Round
+
+Post the `to-tickets` breakdown as `"type": "tickets"`. `id` is unique within the Round; `blocked_by` lists ticket ids; `delivers` is Markdown. `granularity_question`, `title` and `notes` are optional.
+
+```json
+{"round": 8, "type": "tickets", "title": "Breakdown", "granularity_question": "Right size?",
+ "tickets": [
+   {"id": "t1", "title": "Schema", "blocked_by": [], "delivers": "The tables"},
+   {"id": "t2", "title": "API", "blocked_by": ["t1"], "delivers": "Endpoints"}]}
+```
+
+The page shows a card per ticket (title, blocked-by, what it delivers), a Mermaid graph of the blocking edges, per-ticket Approve / Merge with… / Split / Note controls and a granularity choice. The Submission carries them (`answers` is empty):
+
+```json
+{"round": 8, "answers": [], "tickets": [{"id": "t1", "action": "approve"}, {"id": "t2", "action": "merge", "with": "t1"}, {"id": "t3", "action": "split", "note": "by screen"}],
+ "granularity": "right", "granularity_note": "", "approved": false, "source": "browser", "submitted_at": "..."}
+```
+
+`action` is `approve`, `merge` (with `with`, another ticket id), `split` or `note` (both with a non-empty `note`). `granularity` is `right`, `too-coarse` or `too-fine`. `approved` is true only when every ticket is approved and granularity is `right`. If not approved, revise the breakdown and post the next Tickets Round (new number); repeat until approved. Then publish the issues with `to-tickets` and write `done.json` with `{"issues": [{"url": "<issue url>", "title": "<title>"}]}`; the Done page links to each one. If the user answers in the terminal, write `answers-NNN.json` with the same fields yourself.
 
 ## Finish
 

@@ -34,4 +34,8 @@ The final Round of a grill session, posted once the frontier is empty. It summar
 _Avoid_: Summary page, wrap-up
 
 **Done page**:
-The page shown after the spec is published (`done.json`), linking to it.
+The page shown after the spec or tickets are published (`done.json`), linking to the spec or to every published issue.
+
+**Tickets Round**:
+A Round of type `tickets` showing a proposed `to-tickets` breakdown: a card per ticket, a dependency graph, per-ticket approve / merge / split / note controls and a granularity question. Revisions are new Rounds until approved.
+_Avoid_: Breakdown page

@@ -107,6 +107,35 @@ echo '{"spec_url":"https://example.com/spec","title":"The spec"}' > "$SDIR/done.
 ok "state carries the done page link"    '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r .done.spec_url)" = https://example.com/spec ]'
 rm "$SDIR/done.json"
 
+cat > "$SDIR/round-004.json" <<'JSON'
+{"round":4,"type":"tickets","title":"Breakdown","granularity_question":"Is this the right size?",
+ "tickets":[
+  {"id":"t1","title":"Schema","blocked_by":[],"delivers":"The **tables**"},
+  {"id":"t2","title":"API","blocked_by":["t1"],"delivers":"Endpoints"},
+  {"id":"t3","title":"UI","blocked_by":["t1","t2"],"delivers":"Screens"}]}
+JSON
+ok "page has tickets controls and graph" 'PAGE="$(curl -s "$BASE/?key=$KEY")"; grep -q renderTickets <<<"$PAGE" && grep -qi "merge with" <<<"$PAGE" && grep -q Split <<<"$PAGE" && grep -q Approve <<<"$PAGE" && grep -q granularity <<<"$PAGE" && grep -q "graph TD" <<<"$PAGE"'
+ok "page script is still valid JavaScript" 'curl -s "$BASE/?key=$KEY" | sed -n "/^<script>\$/,/^<\/script>/p" | sed "1d;\$d" > "$W/page.js" && node --check "$W/page.js"'
+tsub() { code -X POST -H "x-grill-key: $KEY" -d "$1" "$BASE/submit"; }
+ok "tickets round needs every ticket decided" '[ "$(tsub "{\"round\":4,\"tickets\":[{\"id\":\"t1\",\"action\":\"approve\"}],\"granularity\":\"right\"}")" = 400 ]'
+ok "tickets round rejects unknown ticket"  '[ "$(tsub "{\"round\":4,\"tickets\":[{\"id\":\"t1\",\"action\":\"approve\"},{\"id\":\"t2\",\"action\":\"approve\"},{\"id\":\"zz\",\"action\":\"approve\"}],\"granularity\":\"right\"}")" = 400 ]'
+ok "tickets round rejects unknown action"  '[ "$(tsub "{\"round\":4,\"tickets\":[{\"id\":\"t1\",\"action\":\"nope\"},{\"id\":\"t2\",\"action\":\"approve\"},{\"id\":\"t3\",\"action\":\"approve\"}],\"granularity\":\"right\"}")" = 400 ]'
+ok "merge needs another ticket"            '[ "$(tsub "{\"round\":4,\"tickets\":[{\"id\":\"t1\",\"action\":\"merge\",\"with\":\"t1\"},{\"id\":\"t2\",\"action\":\"approve\"},{\"id\":\"t3\",\"action\":\"approve\"}],\"granularity\":\"right\"}")" = 400 ]'
+ok "split needs a note"                    '[ "$(tsub "{\"round\":4,\"tickets\":[{\"id\":\"t1\",\"action\":\"split\"},{\"id\":\"t2\",\"action\":\"approve\"},{\"id\":\"t3\",\"action\":\"approve\"}],\"granularity\":\"right\"}")" = 400 ]'
+ok "granularity is required and checked"  '[ "$(tsub "{\"round\":4,\"tickets\":[{\"id\":\"t1\",\"action\":\"approve\"},{\"id\":\"t2\",\"action\":\"approve\"},{\"id\":\"t3\",\"action\":\"approve\"}],\"granularity\":\"huge\"}")" = 400 ]'
+ok "rejected tickets submission writes nothing" '[ ! -e "$SDIR/answers-004.json" ]'
+ok "valid tickets submission is recorded" '[ "$(tsub "{\"round\":4,\"tickets\":[{\"id\":\"t1\",\"action\":\"approve\"},{\"id\":\"t2\",\"action\":\"merge\",\"with\":\"t3\"},{\"id\":\"t3\",\"action\":\"split\",\"note\":\"by screen\"}],\"granularity\":\"too-coarse\",\"granularity_note\":\"smaller\"}")" = 200 ] && jq -e ".answers==[] and .approved==false and .tickets[1]=={id:\"t2\",action:\"merge\",with:\"t3\"} and .tickets[2]=={id:\"t3\",action:\"split\",note:\"by screen\"} and .granularity==\"too-coarse\" and .granularity_note==\"smaller\" and .source==\"browser\"" "$SDIR/answers-004.json" >/dev/null'
+cat > "$SDIR/round-005.json" <<'JSON'
+{"round":5,"type":"tickets","tickets":[{"id":"t1","title":"All","delivers":"x"}]}
+JSON
+ok "all-approve with right size is approved" '[ "$(tsub "{\"round\":5,\"tickets\":[{\"id\":\"t1\",\"action\":\"approve\"}],\"granularity\":\"right\"}")" = 200 ] && jq -e ".approved==true" "$SDIR/answers-005.json" >/dev/null'
+sleep 1.5
+ok "tickets round notifies with ticket count" 'grep -q "Grill round 4 ready.*3 tickets" "$W/notify.log"'
+echo '{"issues":[{"url":"https://example.com/i/1","title":"Schema"},{"url":"https://example.com/i/2","title":"API"}]}' > "$SDIR/done.json"
+ok "state carries published issues"       '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r ".done.issues|length")" = 2 ]'
+ok "page renders issue links on done"     'curl -s "$BASE/?key=$KEY" | grep -q "d.issues"'
+rm "$SDIR/done.json"
+
 echo '{"finished_at":"now"}' > "$SDIR/finished.json"
 ok "finished session is not offered"    '[ "$(jq -r .unfinished <<<"$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill --grill-status)")" = null ]'
 ok "state reports finished"             '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r .status)" = finished ]'
