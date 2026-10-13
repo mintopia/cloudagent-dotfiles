@@ -60,6 +60,8 @@ until [ -f "<session_dir>/answers-NNN.json" ]; do sleep 2; done; cat "<session_d
 
 If the user answers the open Round in the terminal instead, map their reply to every question of that Round and write `answers-NNN.json` yourself (file-creation tool, only if it does not exist), in the shape below with `"source": "terminal"` and a `submitted_at` timestamp. The page then shows the Round as answered in the terminal and the status moves to "Answered. Agent working". Use `text` for free-form replies, `accept` for "go with your recommendations", and `skip` for anything not addressed.
 
+On the page, **Accept all recommendations** fills every untouched question that has a `recommendation`, so give each question one where you can. Submit stays disabled until every question is answered or skipped. A side panel (a top bar on phones) shows the Round number, answered / skipped / remaining counts, links to unanswered questions, and a log of decisions settled in earlier Rounds. Earlier Rounds appear collapsed with their answers.
+
 The page shows the status live (waiting for you, agent working, Round ready) by polling `/state` every 2 seconds, and shows "Connection lost. Retrying…" if the server is unreachable.
 
 ## Read the Submission

@@ -37,6 +37,8 @@ sleep 2.5
 ok "new round triggers one notify with number and count" '[ "$(grep -c "Grill round 1 ready.*2 questions" "$W/notify.log")" = 1 ]'
 ok "page falls back to polling on connection loss" 'curl -s "$BASE/?key=$KEY" | grep -q "Connection lost"'
 ok "page renders with the key"          '[ "$(code "$BASE/?key=$KEY")" = 200 ]'
+ok "page has accept-all, panel, decision log" 'PAGE="$(curl -s "$BASE/?key=$KEY")"; for m in accept-all id=\"panel\" id=\"log\" "Round comment" "max-width:640px"; do grep -q -- "$m" <<<"$PAGE" || exit 1; done'
+ok "page script is valid JavaScript"    'curl -s "$BASE/?key=$KEY" | sed -n "/^<script>\$/,/^<\/script>/p" | sed "1d;\$d" > "$W/page.js" && node --check "$W/page.js"'
 ok "page rejected without the key"      '[ "$(code "$BASE/")" = 403 ]'
 ok "page rejected with a wrong key"     '[ "$(code "$BASE/?key=nope")" = 403 ]'
 ok "state rejected without the key"     '[ "$(code "$BASE/state")" = 403 ]'
