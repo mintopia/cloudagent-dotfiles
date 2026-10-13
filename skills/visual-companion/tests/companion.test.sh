@@ -12,7 +12,7 @@ ok() {
 }
 
 W="$(mktemp -d)"
-trap 'for p in "$W"/*/.visual-companion/brainstorm/*/state/server.pid; do [ -f "$p" ] && kill "$(cat "$p")" 2>/dev/null; done; rm -rf "$W"' EXIT
+trap 'for p in "$W"/*/.visual-companion/brainstorm/*/state/server.pid "$W"/*/.grill/*/state/server.pid; do [ -f "$p" ] && kill "$(cat "$p")" 2>/dev/null; done; rm -rf "$W"' EXIT
 mkdir -p "$W/bin" "$W/My Proj_One" "$W/second"
 STORE="$W/forwards.json"; echo '[]' > "$STORE"
 
@@ -64,6 +64,13 @@ ok "both servers run independently"     'curl -fs -o /dev/null "http://localhost
 LONG="$W/$(printf 'a%.0s' {1..80})"; mkdir -p "$LONG"
 ca bash "$SCRIPTS/start-companion.sh" --project-dir "$LONG" >/dev/null
 ok "long hostnames are shortened" 'grep "^add grill-a" "$STORE.log" | awk "{print length(\$2)}" | grep -qx "[0-9]\{1,50\}"'
+
+# Grill mode goes through the same forward lifecycle.
+mkdir -p "$W/gr"
+OUTG="$(ca bash "$SCRIPTS/start-companion.sh" --project-dir "$W/gr" --grill)"
+ok "grill mode gets its own grill-<dir> forward" 'grep -q "^add grill-gr " "$STORE.log"'
+ok "grill mode returns the public url"           '[[ "$(jq -r .url <<<"$OUTG")" == https://grill-gr.example.test/?key=* ]]'
+kill "$(cat "$(jq -r .state_dir <<<"$OUTG")/server.pid")" 2>/dev/null
 
 # Outside Cloud Agent: no forward calls, plain localhost URL.
 before="$(wc -l < "$STORE.log")"

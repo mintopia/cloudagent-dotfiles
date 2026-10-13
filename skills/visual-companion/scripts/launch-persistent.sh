@@ -22,7 +22,9 @@ for ((i = 0; i < ${#args[@]}; i++)); do
   [[ "${args[i]}" == "--project-dir" ]] && PROJECT_DIR="${args[i+1]:-}"
 done
 SLUG="$(basename "${PROJECT_DIR:-visual-companion}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9\n-' '-' | tr -s '-' | sed 's/^-//; s/-$//' | cut -c1-40 | sed 's/-$//')"
-SESSION="${VC_TMUX_SESSION:-visual-companion-${SLUG:-project}}"
+PREFIX="visual-companion"
+for a in "$@"; do [[ "$a" == "--grill" ]] && PREFIX="grill-ui"; done
+SESSION="${VC_TMUX_SESSION:-${PREFIX}-${SLUG:-project}}"
 TMP="${TMPDIR:-/tmp}"
 OUT="$(mktemp "$TMP/visual-companion-launch.XXXXXX.json")"
 

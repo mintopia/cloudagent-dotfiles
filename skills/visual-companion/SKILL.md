@@ -198,6 +198,7 @@ Stops the server; the project's http-forward stays so an open tab reconnects aft
 
 - `scripts/launch-persistent.sh` — tmux wrapper that keeps the server's owner process alive (use this to launch)
 - `scripts/start-companion.sh` / `scripts/stop-companion.sh` — Cloud Agent-aware wrappers
+- `scripts/grill-server.cjs` — grill mode (`--grill` on the launchers), used by the `grill-ui` skill; serves Rounds, records Submissions, session under `<project>/.grill/`
 - `scripts/start-server.sh` / `scripts/stop-server.sh` — upstream server (unmodified)
 - `scripts/server.cjs` — the watching web server (unmodified)
 - `scripts/frame-template.html` — frame CSS reference

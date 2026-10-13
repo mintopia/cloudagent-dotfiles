@@ -20,9 +20,14 @@ fi
 # A project session dir is <project>/.visual-companion/brainstorm/<id>.
 PROJECT_DIR=""
 [[ "$SESSION_DIR" == */.visual-companion/brainstorm/* ]] && PROJECT_DIR="${SESSION_DIR%/.visual-companion/brainstorm/*}"
+PREFIX="visual-companion"
+if [[ "$SESSION_DIR" == */.grill/session-* ]]; then
+  PROJECT_DIR="${SESSION_DIR%/.grill/session-*}"
+  PREFIX="grill-ui"
+fi
 SLUG="$(basename "${PROJECT_DIR:-visual-companion}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9\n-' '-' | tr -s '-' | sed 's/^-//; s/-$//' | cut -c1-40 | sed 's/-$//')"
 if command -v tmux >/dev/null 2>&1; then
-  tmux kill-session -t "${VC_TMUX_SESSION:-visual-companion-${SLUG:-project}}" 2>/dev/null || true
+  tmux kill-session -t "${VC_TMUX_SESSION:-${PREFIX}-${SLUG:-project}}" 2>/dev/null || true
 fi
 
 exec "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR"
