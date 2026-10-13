@@ -15,7 +15,18 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FORWARD_HOSTNAME="visual-companion"
+
+# Parse --project-dir from the passthrough args (start-server.sh owns validation).
+PROJECT_DIR=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  [[ "${args[i]}" == "--project-dir" ]] && PROJECT_DIR="${args[i+1]:-}"
+done
+
+# Per-project hostname: grill-<dir name>, lowercased to [a-z0-9-], trimmed, and
+# capped so the DNS label stays well under 63 chars.
+SLUG="$(basename "${PROJECT_DIR:-visual-companion}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9\n-' '-' | tr -s '-' | sed 's/^-//; s/-$//' | cut -c1-40 | sed 's/-$//')"
+FORWARD_HOSTNAME="grill-${SLUG:-project}"
 
 # Detect a Cloud Agent workspace the same way the cloudagent skill/hooks and
 # install.sh do: the management API env var plus the CLI on PATH.
@@ -45,23 +56,26 @@ mapfile -t FIELDS < <(printf '%s' "$OUT" | node -e '
   let s=""; process.stdin.on("data", d => s += d).on("end", () => {
     const j = JSON.parse(s);
     const u = new URL(j.url);
-    process.stdout.write([j.port, u.searchParams.get("key") || "", j.state_dir].join("\n"));
+    process.stdout.write([j.port, u.searchParams.get("key") || ""].join("\n"));
   });')
 PORT="${FIELDS[0]}"
 KEY="${FIELDS[1]}"
-STATE_DIR="${FIELDS[2]}"
 
-# Reuse an existing forward for this container port (restarts keep the same port
-# and key per project, so the user's open tab reconnects to the same URL), else
-# create one.
+# Reuse an existing forward: match by container port first, then by hostname
+# (restarts keep the same port and key per project, so the user's open tab
+# reconnects to the same URL), else create one. Forwards are never removed on
+# stop, so they persist across restarts.
 BASE_URL="$(cloudagent http-forwards list --json 2>/dev/null | node -e '
   let s=""; process.stdin.on("data", d => s += d).on("end", () => {
     let arr = [];
     try { const j = JSON.parse(s); arr = j.data || j; } catch (e) {}
     const port = Number(process.argv[1]);
-    const hit = (arr || []).find(f => Number(f.container_port) === port);
+    const host = process.argv[2];
+    const list = arr || [];
+    const hit = list.find(f => Number(f.container_port) === port)
+      || list.find(f => f.hostname === host);
     process.stdout.write(hit && hit.url ? String(hit.url) : "");
-  });' "$PORT")"
+  });' "$PORT" "$FORWARD_HOSTNAME")"
 
 if [[ -z "$BASE_URL" ]]; then
   ADD="$(cloudagent http-forwards add --container "$PORT" --hostname "$FORWARD_HOSTNAME" --json)"
@@ -71,9 +85,6 @@ if [[ -z "$BASE_URL" ]]; then
       process.stdout.write([f.url || "", f.id || ""].join("\n"));
     });')
   BASE_URL="${FWD[0]}"
-  FWD_ID="${FWD[1]}"
-  # Record the forward id so stop-companion.sh can tear it down.
-  [[ -n "$FWD_ID" && -d "$STATE_DIR" ]] && printf '%s\n' "$FWD_ID" > "$STATE_DIR/http-forward-id"
 fi
 
 if [[ -z "$BASE_URL" ]]; then

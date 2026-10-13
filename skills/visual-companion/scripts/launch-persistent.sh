@@ -16,7 +16,15 @@
 # Usage: launch-persistent.sh --project-dir <path> [--open] [start-server flags...]
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SESSION="${VC_TMUX_SESSION:-visual-companion}"
+PROJECT_DIR=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  [[ "${args[i]}" == "--project-dir" ]] && PROJECT_DIR="${args[i+1]:-}"
+done
+SLUG="$(basename "${PROJECT_DIR:-visual-companion}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9\n-' '-' | tr -s '-' | sed 's/^-//; s/-$//' | cut -c1-40 | sed 's/-$//')"
+PREFIX="visual-companion"
+for a in "$@"; do [[ "$a" == "--grill" ]] && PREFIX="grill-ui"; done
+SESSION="${VC_TMUX_SESSION:-${PREFIX}-${SLUG:-project}}"
 TMP="${TMPDIR:-/tmp}"
 OUT="$(mktemp "$TMP/visual-companion-launch.XXXXXX.json")"
 
@@ -28,7 +36,6 @@ fi
 
 # A previous run leaves the session parked on `sleep infinity`; replace it.
 tmux kill-session -t "$SESSION" 2>/dev/null || true
-rm -f "$TMP"/visual-companion-run.*.sh 2>/dev/null || true
 
 # Build a runner script so arg quoting survives the hand-off to tmux's shell. $$
 # is the runner's own PID; it owns the server and persists via `exec sleep

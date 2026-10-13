@@ -75,8 +75,8 @@ In a Cloud Agent workspace (`CLOUDAGENT_API_URL` + the `cloudagent` CLI),
 `start-companion.sh` does three things the plain server can't:
 
 1. Binds `0.0.0.0` so the forward proxy can reach it.
-2. Creates (or reuses) a TLS-terminated `http-forward` on the `visual-companion`
-   hostname and rewrites the returned `url` to the public `https://` address.
+2. Creates (or reuses) a TLS-terminated `http-forward` per project, hostname
+   `grill-<project-dir-name>` (matched by port, then hostname), and rewrites the returned `url` to the public `https://` address.
 3. Relies on the patched `helper.js`, which upgrades the WebSocket to `wss://`
    automatically on https pages — so live-reload and click tracking keep working
    behind the forward instead of silently dying on mixed-content. If the
@@ -191,13 +191,14 @@ their terminal text only.
 scripts/stop-companion.sh <session_dir>
 ```
 
-Removes the http-forward (Cloud Agent) and stops the server. Mockups under
+Stops the server; the project's http-forward stays so an open tab reconnects after a restart. Mockups under
 `.visual-companion/brainstorm/` persist for later review; `/tmp` sessions are deleted.
 
 ## Reference
 
 - `scripts/launch-persistent.sh` — tmux wrapper that keeps the server's owner process alive (use this to launch)
 - `scripts/start-companion.sh` / `scripts/stop-companion.sh` — Cloud Agent-aware wrappers
+- `scripts/grill-server.cjs` — grill mode (`--grill` on the launchers), used by the `grill-ui` skill; serves Rounds, records Submissions, session under `<project>/.grill/`
 - `scripts/start-server.sh` / `scripts/stop-server.sh` — upstream server (unmodified)
 - `scripts/server.cjs` — the watching web server (unmodified)
 - `scripts/frame-template.html` — frame CSS reference
