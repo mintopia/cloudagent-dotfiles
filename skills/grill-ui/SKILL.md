@@ -1,6 +1,6 @@
 ---
 name: grill-ui
-description: Protocol for presenting grill Rounds in the browser and collecting Submissions. Only loaded by entry skills such as grill-me-ui; do not invoke it directly.
+description: Protocol for presenting grill Rounds in the browser and collecting Submissions. Only loaded by entry skills such as grill-me-ui and grill-with-docs-ui; do not invoke it directly.
 ---
 
 # Grill UI protocol
@@ -97,6 +97,10 @@ The page shows the status live (waiting for you, agent working, Round ready) by 
 ## Decision log
 
 After folding in each Submission, append the decisions it settled to `decision_log` (`decisions.md`) as Markdown bullets. The page shows it, and it is what you reload on resume.
+
+## Docs changed
+
+Only `grill-with-docs-ui` uses this. When it edits glossary or ADR files it writes their repo-relative paths as a JSON array to `docs-changed.json` in `session_dir`. The summary panel lists them and hides the section when the array is empty or the file is absent, so it never shows in `grill-me-ui`.
 
 ## Finish
 

@@ -77,7 +77,11 @@ function snapshot() {
   const latest = rounds[rounds.length - 1];
   const status = !latest ? 'waiting-for-agent' : latest.answers ? 'agent-working' : 'round-ready';
   const finished = readJson(path.join(SESSION_DIR, 'finished.json'));
-  return { status: finished ? 'finished' : status, rounds, decisions: readFile(path.join(SESSION_DIR, 'decisions.md')) };
+  const docs = readJson(path.join(SESSION_DIR, 'docs-changed.json'));
+  return {
+    status: finished ? 'finished' : status, rounds, decisions: readFile(path.join(SESSION_DIR, 'decisions.md')),
+    docs: Array.isArray(docs) ? docs.filter(d => typeof d === 'string' && d) : []
+  };
 }
 
 const ANSWER_KINDS = ['accept', 'option', 'skip', 'text'];
@@ -278,7 +282,7 @@ body{padding:0 .75rem 1rem}
 </head><body>
 <h1>Grill</h1><div class="status" id="status">Loading…</div>
 <div id="layout"><main><div id="history"></div><details id="decisions" hidden><summary>Decision log</summary><div id="decisions-body"></div></details><div id="current"></div></main>
-<aside id="panel"><div id="progress"></div><div id="log" class="log"></div></aside></div>
+<aside id="panel"><div id="progress"></div><div id="log" class="log"></div><details id="docs" hidden open><summary>Docs changed</summary><ul id="docs-list"></ul></details></aside></div>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
@@ -494,6 +498,9 @@ function poll() {
     var last = rounds[rounds.length - 1];
     renderHistory();
     renderLog();
+    var docs = s.docs || [];
+    document.getElementById('docs').hidden = !docs.length;
+    document.getElementById('docs-list').innerHTML = docs.map(function (d) { return '<li><code>' + esc(d) + '</code></li>'; }).join('');
     var dec = (s.decisions || '').replace(/^# Decision log\\s*/, '');
     if (dec !== lastDecisions) {
       lastDecisions = dec;

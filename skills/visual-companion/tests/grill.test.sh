@@ -84,6 +84,11 @@ ok "git-ignore file is untouched"       '[ ! -e "$P/.gitignore" ]'
 ok "visual-companion dir is excluded"   'grep -qxF ".visual-companion/" "$P/.git/info/exclude"'
 
 ok "open round stays open after restart" '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r ".rounds[1].answers")" = null ]'
+ok "state has no docs by default"       'curl -s "$BASE/state?key=$KEY" | jq -e ".docs==[]" >/dev/null'
+ok "page hides docs section until used" 'curl -s "$BASE/?key=$KEY" | grep -q "id=\"docs\" hidden"'
+echo '["GLOSSARY.md","docs/decisions/0021-x.md",3]' > "$SDIR/docs-changed.json"
+ok "state lists changed docs"           '[ "$(curl -s "$BASE/state?key=$KEY" | jq -c .docs)" = "[\"GLOSSARY.md\",\"docs/decisions/0021-x.md\"]" ]'
+rm "$SDIR/docs-changed.json"
 printf -- '- chose files\n' >> "$SDIR/decisions.md"
 ok "state shows appended decision log"  'curl -s "$BASE/state?key=$KEY" | jq -e ".decisions|contains(\"chose files\")" >/dev/null'
 

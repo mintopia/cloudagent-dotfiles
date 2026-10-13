@@ -24,3 +24,7 @@ _Avoid_: History, transcript
 **Agent notes**:
 Agent output attached to a round that isn't a question: findings, sub-agent reports, glossary and ADR changes.
 _Avoid_: Commentary, log
+
+**Docs changed**:
+The glossary and ADR files a grill-with-docs session created or edited, listed in the summary panel and empty (hidden) otherwise.
+_Avoid_: Changelog
