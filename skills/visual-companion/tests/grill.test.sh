@@ -41,6 +41,8 @@ PAGE="$(curl -s "$BASE/?key=$KEY")"
 ok "page pins marked, highlight.js and mermaid" 'grep -q "marked@[0-9.]*/" <<<"$PAGE" && grep -q "highlight.js\|cdn-release@11.9.0" <<<"$PAGE" && grep -q "mermaid@10.9.1" <<<"$PAGE" && ! grep -qE "(marked|mermaid)@(latest|[0-9]+)/" <<<"$PAGE"'
 ok "page has dark and light code themes" 'grep -q "prefers-color-scheme: dark" <<<"$PAGE" && grep -q "github-dark.min.css" <<<"$PAGE"'
 ok "page supports visual blocks and mockup classes" 'grep -q "q.visual" <<<"$PAGE" && grep -q "\.mockup-body" <<<"$PAGE"'
+ok "page has accept-all, panel, decision log" 'PAGE="$(curl -s "$BASE/?key=$KEY")"; for m in accept-all id=\"panel\" id=\"log\" "Round comment" "max-width:640px"; do grep -q -- "$m" <<<"$PAGE" || exit 1; done'
+ok "page script is valid JavaScript"    'curl -s "$BASE/?key=$KEY" | sed -n "/^<script>\$/,/^<\/script>/p" | sed "1d;\$d" > "$W/page.js" && node --check "$W/page.js"'
 ok "page rejected without the key"      '[ "$(code "$BASE/")" = 403 ]'
 ok "page rejected with a wrong key"     '[ "$(code "$BASE/?key=nope")" = 403 ]'
 ok "state rejected without the key"     '[ "$(code "$BASE/state")" = 403 ]'

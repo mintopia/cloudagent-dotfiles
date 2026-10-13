@@ -233,12 +233,20 @@ const PAGE = `<!DOCTYPE html>
 <style>
 :root{--bg:#fff;--fg:#1d1d1f;--bg2:#fff;--bg3:#e5e5e7;--border:#d0d0d5;--muted:#6e6e73;--accent:#0071e3;--rec:#eef6ff;--ok:#34c759;--err:#ff3b30;--code:#f5f5f7}
 @media (prefers-color-scheme:dark){:root{--bg:#161618;--fg:#eee;--bg2:#2d2d2f;--bg3:#3d3d3f;--border:#444;--muted:#a1a1a6;--accent:#0a84ff;--rec:#1c2a3a;--ok:#30d158;--err:#ff453a;--code:#0d1117}}
-body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:1rem;background:var(--bg);color:var(--fg)}
-.q{border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1rem 0}
+*{box-sizing:border-box}
+body{font:16px/1.5 system-ui,sans-serif;max-width:1040px;margin:0 auto;padding:1rem;background:var(--bg);color:var(--fg);overflow-wrap:anywhere}
+#layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:1.5rem;align-items:start}
+#panel{position:sticky;top:1rem;border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;font-size:.9rem;background:var(--bg)}
+#panel h2{font-size:1rem;margin:0 0 .5rem}#panel ul{margin:.25rem 0;padding-left:1.1rem}
+.counts{display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin:.25rem 0}.counts b{font-variant-numeric:tabular-nums}
+.log{margin-top:.75rem}.log li{margin:.25rem 0}
+.q.settled{border-color:var(--ok)}.q.skipped{opacity:.75}
+.bar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:1rem 0}
+.q{border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1rem 0;scroll-margin-top:6rem}
 .q h3{margin:0 0 .5rem}.rec{background:var(--rec);border-radius:6px;padding:.5rem .75rem;margin:.5rem 0}
 .notes{border-left:3px solid var(--accent);padding:.1rem .9rem;margin:1rem 0;background:var(--rec);border-radius:0 6px 6px 0}
-.opts label{display:block;margin:.25rem 0}textarea{width:100%;box-sizing:border-box;min-height:3.5rem;margin-top:.5rem;background:var(--bg2);color:var(--fg);border:1px solid var(--border);border-radius:6px}
-.status{color:var(--muted);font-size:.9rem}.past{opacity:.8;margin:.5rem 0}button{font:inherit;padding:.5rem 1.25rem}
+.opts label{display:block;margin:.25rem 0}textarea{width:100%;min-height:3.5rem;margin-top:.5rem;background:var(--bg2);color:var(--fg);border:1px solid var(--border);border-radius:6px}
+.status{color:var(--muted);font-size:.9rem}.past{opacity:.8;margin:.5rem 0}.past ul{margin:.25rem 0}button{font:inherit;padding:.5rem 1.25rem}
 pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:.75rem;overflow-x:auto}
 pre code.hljs{padding:0;background:transparent}
 :not(pre)>code{background:var(--code);border-radius:4px;padding:.1rem .3rem}
@@ -257,19 +265,27 @@ table{border-collapse:collapse}th,td{border:1px solid var(--border);padding:.25r
 .mock-sidebar{background:var(--bg3);padding:1rem;min-width:180px}.mock-content{padding:1.5rem;flex:1}
 .mock-button{background:var(--accent);color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;font-size:.85rem}
 .mock-input{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:.5rem;width:100%}
+@media (max-width:640px){
+body{padding:0 .75rem 1rem}
+#layout{display:block}
+#panel{position:sticky;top:0;z-index:5;margin:0 -.75rem;border-radius:0;border-width:0 0 1px;padding:.4rem .75rem}
+#panel h2{display:inline;margin:0 .5rem 0 0}#panel .counts{display:inline-flex;margin:0}
+#panel details{margin:.25rem 0}
+}
 </style>
 <link rel="stylesheet" media="(prefers-color-scheme: light)" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
 <link rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
 </head><body>
 <h1>Grill</h1><div class="status" id="status">Loading…</div>
-<div id="history"></div><details id="decisions" hidden><summary>Decision log</summary><div id="decisions-body"></div></details><div id="current"></div>
+<div id="layout"><main><div id="history"></div><details id="decisions" hidden><summary>Decision log</summary><div id="decisions-body"></div></details><div id="current"></div></main>
+<aside id="panel"><div id="progress"></div><div id="log" class="log"></div></aside></div>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 <script>
 var md = function (s) { return window.marked ? window.marked.parse(String(s || '')) : '<pre>' + String(s || '').replace(/</g, '&lt;') + '</pre>'; };
 var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
-var shown = null, picks = {}, lastHistory = null, lastDecisions = null;
+var shown = null, picks = {}, current = null, rounds = [], lastHistory = null, lastDecisions = null;
 var dark = window.matchMedia('(prefers-color-scheme: dark)');
 function initMermaid() { if (window.mermaid) window.mermaid.initialize({ startOnLoad: false, theme: dark.matches ? 'dark' : 'default', securityLevel: 'strict' }); }
 function enhance(root) {
@@ -294,7 +310,7 @@ dark.addEventListener('change', function () { initMermaid(); renderMermaid(docum
 var LABEL = { 'waiting-for-agent': 'Agent working: no Round yet…', 'agent-working': 'Answered. Agent working…', 'round-ready': 'Waiting for you: Round ready', 'finished': 'Session finished' };
 
 function questionHtml(q) {
-  var h = '<div class="q" data-q="' + esc(q.id) + '"><h3>' + esc(q.title) + '</h3><div>' + md(q.body) + '</div>';
+  var h = '<div class="q" id="q-' + esc(q.id) + '" data-q="' + esc(q.id) + '"><h3>' + esc(q.title) + '</h3><div>' + md(q.body) + '</div>';
   if (q.visual) h += '<div class="mockup"><div class="mockup-header">Visual</div><div class="mockup-body">' + q.visual + '</div></div>';
   if (q.recommendation) h += '<div class="rec"><strong>Recommended:</strong> ' + md(q.recommendation) + '</div>';
   h += '<div class="opts">';
@@ -306,47 +322,162 @@ function questionHtml(q) {
   return h;
 }
 
+function qEl(id) {
+  var all = document.querySelectorAll('#current .q');
+  for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-q') === id) return all[i];
+  return null;
+}
+function textOf(id) {
+  var t = qEl(id) && qEl(id).querySelector('textarea');
+  return t ? t.value.trim() : '';
+}
+function stateOf(q) {
+  if (picks[q.id]) return picks[q.id] === 'skip' ? 'skip' : 'answered';
+  return textOf(q.id) ? 'answered' : 'open';
+}
+
+function optionLabel(q, id) {
+  var found = (q.options || []).filter(function (o) { return (o.id || o) === id; })[0];
+  return found ? (found.label || found.id || found) : id;
+}
+function describe(q, a) {
+  var s;
+  if (a.kind === 'option') s = optionLabel(q, a.option);
+  else if (a.kind === 'accept') s = 'Accepted: ' + (q.recommendation || 'recommendation');
+  else if (a.kind === 'skip') return 'Skipped';
+  else s = '';
+  if (a.text) s = s ? s + ' (' + a.text + ')' : a.text;
+  return s || '(no answer)';
+}
+
+function renderPicked(q) {
+  var el = qEl(q.id), p = picks[q.id], label = '';
+  if (p === 'accept') label = 'Accepted';
+  else if (p === 'skip') label = 'Skipped';
+  else if (p === 'option') label = 'Picked ' + optionLabel(q, el.querySelector('input:checked').value);
+  el.querySelector('.picked').textContent = label;
+  el.className = 'q' + (p === 'skip' ? ' skipped' : p ? ' settled' : '');
+}
+
 function renderCurrent(r) {
   var el = document.getElementById('current');
   var h = '<h2>Round ' + r.round + (r.title ? ': ' + esc(r.title) : '') + '</h2>';
   if (r.notes) h += '<div class="notes">' + md(r.notes) + '</div>';
+  h += '<div class="bar"><button id="accept-all">Accept all recommendations</button></div>';
   (r.questions || []).forEach(function (q) { h += questionHtml(q); });
-  h += '<textarea id="comment" placeholder="Round comment (optional)"></textarea><p><button id="submit" disabled>Submit</button></p>';
+  h += '<textarea id="comment" placeholder="Round comment (optional)"></textarea>';
+  h += '<p><button id="submit" disabled>Submit</button> <span class="status" id="submit-hint"></span></p>';
   el.innerHTML = h;
   enhance(el);
   picks = {};
+  current = r;
   el.onclick = function (e) {
     var act = e.target.getAttribute && e.target.getAttribute('data-act');
     if (!act) return;
-    var qEl = e.target.closest('.q');
-    picks[qEl.getAttribute('data-q')] = act;
-    qEl.querySelector('.picked').textContent = act === 'accept' ? 'Accepted' : 'Skipped';
-    refreshSubmit(r);
+    var id = e.target.closest('.q').getAttribute('data-q');
+    picks[id] = act;
+    var checked = qEl(id).querySelector('input:checked');
+    if (checked) checked.checked = false;
+    renderPicked(questionById(id));
+    refresh();
   };
-  el.oninput = function () { refreshSubmit(r); };
+  el.oninput = refresh;
   el.onchange = function (e) {
     if (e.target.type !== 'radio') return;
-    var qEl = e.target.closest('.q');
-    picks[qEl.getAttribute('data-q')] = 'option';
-    qEl.querySelector('.picked').textContent = 'Picked ' + e.target.value;
-    refreshSubmit(r);
+    var id = e.target.closest('.q').getAttribute('data-q');
+    picks[id] = 'option';
+    renderPicked(questionById(id));
+    refresh();
+  };
+  document.getElementById('accept-all').onclick = function () {
+    (r.questions || []).forEach(function (q) {
+      if (q.recommendation && stateOf(q) === 'open') { picks[q.id] = 'accept'; renderPicked(q); }
+    });
+    refresh();
   };
   document.getElementById('submit').onclick = function () { submit(r); };
+  refresh();
 }
 
-function refreshSubmit(r) {
-  var done = (r.questions || []).every(function (q) { return picks[q.id] || textOf(q.id); });
-  document.getElementById('submit').disabled = !done;
+function questionById(id) {
+  return (current.questions || []).filter(function (q) { return q.id === id; })[0];
 }
-function textOf(id) {
-  var t = document.querySelector('.q[data-q="' + id + '"] textarea');
-  return t ? t.value.trim() : '';
+
+function counts() {
+  var c = { answered: 0, skipped: 0, remaining: [] };
+  (current.questions || []).forEach(function (q) {
+    var s = stateOf(q);
+    if (s === 'answered') c.answered++; else if (s === 'skip') c.skipped++; else c.remaining.push(q);
+  });
+  return c;
+}
+
+function renderProgress() {
+  var el = document.getElementById('progress');
+  if (!current) { el.innerHTML = '<h2>Progress</h2><div>No open Round.</div>'; return; }
+  var c = counts();
+  var h = '<h2>Round ' + current.round + '</h2><div class="counts"><span><b>' + c.answered + '</b> answered</span><span><b>' +
+    c.skipped + '</b> skipped</span><span><b>' + c.remaining.length + '</b> remaining</span></div>';
+  if (c.remaining.length) {
+    h += '<details open><summary>Unanswered</summary><ul>' + c.remaining.map(function (q) {
+      return '<li><a href="#q-' + esc(q.id) + '">' + esc(q.title) + '</a></li>';
+    }).join('') + '</ul></details>';
+  }
+  el.innerHTML = h;
+}
+
+function renderLog() {
+  var items = [];
+  rounds.forEach(function (r) {
+    if (!r.answers) return;
+    var byId = {};
+    (r.round.questions || []).forEach(function (q) { byId[q.id] = q; });
+    (r.answers.answers || []).forEach(function (a) {
+      if (a.kind === 'skip' || !byId[a.id]) return;
+      items.push('<li>R' + r.round.round + ' · <strong>' + esc(byId[a.id].title) + '</strong>: ' + esc(describe(byId[a.id], a)) + '</li>');
+    });
+  });
+  document.getElementById('log').innerHTML = '<details' + (items.length ? ' open' : '') + '><summary>Decisions so far (' + items.length + ')</summary>' +
+    (items.length ? '<ul>' + items.join('') + '</ul>' : '<div>None yet.</div>') + '</details>';
+}
+
+function renderHistory() {
+  var hist = rounds.filter(function (r) { return r.answers; }).map(function (r) {
+    var byId = {};
+    (r.round.questions || []).forEach(function (q) { byId[q.id] = q; });
+    var src = r.answers.source === 'terminal' ? ' in the terminal' : '';
+    var h = '<details class="past"><summary>Round ' + r.round.round + (r.round.title ? ': ' + esc(r.round.title) : '') + ' (answered' + src + ')</summary>';
+    if (r.round.notes) h += '<div class="notes">' + md(r.round.notes) + '</div>';
+    h += '<ul>';
+    (r.answers.answers || []).forEach(function (a) {
+      var q = byId[a.id] || { title: a.id };
+      h += '<li><strong>' + esc(q.title) + '</strong>: ' + esc(describe(q, a)) + '</li>';
+    });
+    h += '</ul>';
+    if (r.answers.comment) h += '<p><em>Comment:</em> ' + esc(r.answers.comment) + '</p>';
+    return h + '</details>';
+  }).join('');
+  if (hist === lastHistory) return;
+  lastHistory = hist;
+  var hEl = document.getElementById('history');
+  hEl.innerHTML = hist;
+  enhance(hEl);
+}
+
+function refresh() {
+  if (!current) return;
+  var c = counts();
+  var sub = document.getElementById('submit');
+  if (sub) sub.disabled = c.remaining.length > 0;
+  var hint = document.getElementById('submit-hint');
+  if (hint) hint.textContent = c.remaining.length ? 'Answer or skip ' + c.remaining.length + ' more to submit' : '';
+  renderProgress();
 }
 
 function submit(r) {
   var answers = r.questions.map(function (q) {
     var kind = picks[q.id] || 'text', a = { id: q.id, kind: kind };
-    if (kind === 'option') a.option = document.querySelector('input[name="o-' + q.id + '"]:checked').value;
+    if (kind === 'option') a.option = qEl(q.id).querySelector('input:checked').value;
     var t = textOf(q.id); if (t) a.text = t;
     return a;
   });
@@ -359,23 +490,10 @@ function submit(r) {
 function poll() {
   fetch('/state', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (s) {
     document.getElementById('status').textContent = LABEL[s.status] || s.status;
-    var last = s.rounds[s.rounds.length - 1];
-    var hist = s.rounds.filter(function (r) { return r.answers; }).map(function (r) {
-      var qs = (r.round.questions || []).map(function (q) {
-        var a = (r.answers.answers || []).filter(function (x) { return x.id === q.id; })[0] || {};
-        var shownAnswer = a.kind === 'option' ? 'Picked ' + a.option : a.kind === 'accept' ? 'Accepted recommendation' : a.kind === 'skip' ? 'Skipped' : 'Text answer';
-        return '<div class="q"><h3>' + esc(q.title) + '</h3><div>' + md(q.body) + '</div><p><strong>' + esc(shownAnswer) + '</strong>' + (a.text ? ': ' + esc(a.text) : '') + '</p></div>';
-      }).join('');
-      var c = r.answers.comment ? '<p><em>' + esc(r.answers.comment) + '</em></p>' : '';
-      return '<details class="past"><summary>Round ' + r.round.round + (r.round.title ? ': ' + esc(r.round.title) : '') + ' (answered)</summary>' +
-        (r.round.notes ? '<div class="notes">' + md(r.round.notes) + '</div>' : '') + qs + c + '</details>';
-    }).join('');
-    if (hist !== lastHistory) {
-      lastHistory = hist;
-      var hEl = document.getElementById('history');
-      hEl.innerHTML = hist;
-      enhance(hEl);
-    }
+    rounds = s.rounds;
+    var last = rounds[rounds.length - 1];
+    renderHistory();
+    renderLog();
     var dec = (s.decisions || '').replace(/^# Decision log\\s*/, '');
     if (dec !== lastDecisions) {
       lastDecisions = dec;
@@ -385,7 +503,7 @@ function poll() {
       enhance(dEl);
     }
     if (last && !last.answers && shown !== last.round.round) { shown = last.round.round; renderCurrent(last.round); }
-    if (last && last.answers) { document.getElementById('current').innerHTML = ''; shown = null; }
+    if (!last || last.answers) { document.getElementById('current').innerHTML = ''; shown = null; current = null; renderProgress(); }
   }).catch(function () { document.getElementById('status').textContent = 'Connection lost. Retrying…'; });
 }
 poll(); setInterval(poll, 2000);
