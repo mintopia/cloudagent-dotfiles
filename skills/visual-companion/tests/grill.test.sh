@@ -56,5 +56,24 @@ OUT2="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill)"
 ok "restart keeps port and key"         '[ "$(jq -r .url <<<"$OUT2")" = "$URL" ]'
 ok "restart keeps the session history"  '[ "$(curl -s "$BASE/state?key=$KEY" | jq ".rounds|length")" = 2 ]'
 
+ok "restart page state carries the decision log" 'curl -s "$BASE/state?key=$KEY" | jq -e ".decisions|startswith(\"# Decision log\")" >/dev/null'
+ok "server info reports resumed"        '[ "$(jq -r .resumed <<<"$OUT2")" = true ] && [ "$(jq -r .resumed <<<"$OUT")" = false ]'
+ok "session has a decision log file"    '[ "$(jq -r .decision_log <<<"$OUT2")" = "$SDIR/decisions.md" ] && [ -f "$SDIR/decisions.md" ]'
+ok "git-ignore file is untouched"       '[ ! -e "$P/.gitignore" ]'
+ok "visual-companion dir is excluded"   'grep -qxF ".visual-companion/" "$P/.git/info/exclude"'
+
+ST="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill --grill-status)"
+ok "status offers the unfinished session" '[ "$(jq -r .unfinished <<<"$ST")" = "$SDIR" ] && [ "$(jq -r .rounds <<<"$ST")" = 2 ] && [ "$(jq -r .answered <<<"$ST")" = 1 ]'
+
+echo '{"finished_at":"now"}' > "$SDIR/finished.json"
+ok "finished session is not offered"    '[ "$(jq -r .unfinished <<<"$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill --grill-status)")" = null ]'
+ok "state reports finished"             '[ "$(curl -s "$BASE/state?key=$KEY" | jq -r .status)" = finished ]'
+
+sleep 1; OUT3="$(bash "$SCRIPTS/start-server.sh" --project-dir "$P" --grill)"
+SDIR3="$(jq -r .session_dir <<<"$OUT3")"
+ok "after finishing, a new session starts" '[ "$SDIR3" != "$SDIR" ] && [ "$(jq -r .resumed <<<"$OUT3")" = false ]'
+ok "new session reuses port and key"    '[ "$(jq -r .url <<<"$OUT3")" = "$URL" ]'
+ok "old session history is untouched"   '[ -f "$SDIR/round-002.json" ] && [ -f "$SDIR/answers-001.json" ]'
+
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]
