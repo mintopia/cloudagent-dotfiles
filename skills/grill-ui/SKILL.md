@@ -44,7 +44,7 @@ Write `round-NNN.json` (zero-padded, next number) into `session_dir` with the fi
 
 `options` and `recommendation` are optional. Question ids are unique within a Round.
 
-Then tell the user in one terminal line: the round number, question count and URL.
+The server sends a `cloudagent notify` for each new Round (number and question count) by itself. Print only one terminal line per Round: the round number, question count and URL. Do not repeat the questions in the terminal.
 
 ## Wait for the Submission
 
@@ -54,7 +54,13 @@ Right after posting, start a background wait so you get a turn when the user sub
 until [ -f "<session_dir>/answers-NNN.json" ]; do sleep 2; done; cat "<session_dir>/answers-NNN.json"
 ```
 
-At the start of any turn also check for an unread `answers-NNN.json`. If the user types in the terminal instead, treat that as the answer.
+**At the start of every turn**, before anything else, list `answers-*.json` and process any Submission you have not yet read, even if the background wait died or never started. Any terminal message from the user is a reason to do this check.
+
+### Answering in the terminal
+
+If the user answers the open Round in the terminal instead, map their reply to every question of that Round and write `answers-NNN.json` yourself (file-creation tool, only if it does not exist), in the shape below with `"source": "terminal"` and a `submitted_at` timestamp. The page then shows the Round as answered in the terminal and the status moves to "Answered. Agent working". Use `text` for free-form replies, `accept` for "go with your recommendations", and `skip` for anything not addressed.
+
+The page shows the status live (waiting for you, agent working, Round ready) by polling `/state` every 2 seconds, and shows "Connection lost. Retrying…" if the server is unreachable.
 
 ## Read the Submission
 
