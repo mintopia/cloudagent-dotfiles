@@ -16,6 +16,10 @@
 #                         after the user approves the visual companion).
 #   --grill               Serve the grill UI (grill-server.cjs) with its session
 #                         under <project-dir>/.grill/ instead of mockups.
+#   --grill-status        With --grill: print the newest unfinished grill session
+#                         as JSON (resume detection) and exit without starting.
+#   --new                 With --grill: start a fresh grill session instead of
+#                         resuming the newest unfinished one.
 #   --foreground          Run server in the current terminal (no backgrounding).
 #   --background          Force background mode (overrides Codex auto-foreground).
 
@@ -29,6 +33,8 @@ BIND_HOST="127.0.0.1"
 URL_HOST=""
 IDLE_TIMEOUT_MINUTES=""
 GRILL="false"
+GRILL_STATUS="false"
+GRILL_NEW="false"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project-dir)
@@ -49,6 +55,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --grill)
       GRILL="true"
+      shift
+      ;;
+    --grill-status)
+      GRILL_STATUS="true"
+      shift
+      ;;
+    --new)
+      GRILL_NEW="true"
       shift
       ;;
     --open)
@@ -117,6 +131,21 @@ fi
 # keep everything this script and the server create owner-only.
 umask 077
 
+newest_unfinished_session() {
+  local d
+  while IFS= read -r d; do
+    [[ -f "$d/finished.json" ]] || { printf '%s' "$d"; return; }
+  done < <(ls -d "$1"/session-* 2>/dev/null | sort -r)
+}
+
+kill_project_servers() {
+  local pf
+  for pf in "$1"/session-*/state/server.pid; do
+    [[ -f "$pf" && "$(cat "$pf")" =~ ^[0-9]+$ ]] && kill "$(cat "$pf")" 2>/dev/null
+  done
+  sleep 0.3
+}
+
 # Generate unique session directory
 SESSION_ID="$$-$(date +%s)"
 
@@ -125,11 +154,26 @@ if [[ "$GRILL" == "true" ]]; then
     echo '{"error": "--grill requires --project-dir"}'
     exit 1
   fi
-  # A grill session outlives server restarts: reuse the newest session dir.
   GRILL_ROOT="${PROJECT_DIR}/.grill"
-  mkdir -p "$GRILL_ROOT"
-  SESSION_DIR="$(ls -d "$GRILL_ROOT"/session-* 2>/dev/null | sort | tail -1)"
-  [[ -n "$SESSION_DIR" ]] || SESSION_DIR="${GRILL_ROOT}/session-$(date +%Y%m%d-%H%M%S)"
+  SESSION_DIR="$(newest_unfinished_session "$GRILL_ROOT")"
+  if [[ "$GRILL_STATUS" == "true" ]]; then
+    if [[ -z "$SESSION_DIR" ]]; then
+      echo '{"type":"grill-status","unfinished":null}'
+    else
+      ROUNDS="$(ls "$SESSION_DIR"/round-*.json 2>/dev/null | wc -l | tr -d ' ')"
+      ANSWERED="$(ls "$SESSION_DIR"/answers-*.json 2>/dev/null | wc -l | tr -d ' ')"
+      node -e 'console.log(JSON.stringify({type: "grill-status", unfinished: process.argv[1], rounds: +process.argv[2], answered: +process.argv[3]}))' "$SESSION_DIR" "$ROUNDS" "$ANSWERED"
+    fi
+    exit 0
+  fi
+  RESUMED="true"
+  if [[ "$GRILL_NEW" == "true" || -z "$SESSION_DIR" ]]; then
+    SESSION_DIR="${GRILL_ROOT}/session-$(date +%Y%m%d-%H%M%S)"
+    RESUMED="false"
+  fi
+  mkdir -p "$SESSION_DIR"
+  [[ -f "$SESSION_DIR/decisions.md" ]] || printf '# Decision log\n' > "$SESSION_DIR/decisions.md"
+  export BRAINSTORM_RESUMED="$RESUMED"
   export BRAINSTORM_PORT_FILE="${GRILL_ROOT}/.last-port"
   export BRAINSTORM_TOKEN_FILE="${GRILL_ROOT}/.last-token"
   SERVER_FILE="grill-server.cjs"
@@ -172,6 +216,9 @@ printf '%s\n' "$SERVER_ID" > "$SERVER_ID_FILE"
 chmod 600 "$SERVER_ID_FILE" 2>/dev/null || true
 
 # Kill any existing server
+if [[ "$GRILL" == "true" ]]; then
+  kill_project_servers "$GRILL_ROOT"
+fi
 if [[ -f "$PID_FILE" ]]; then
   old_pid=$(cat "$PID_FILE")
   kill "$old_pid" 2>/dev/null

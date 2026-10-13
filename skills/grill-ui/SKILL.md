@@ -7,15 +7,25 @@ description: Protocol for presenting grill Rounds in the browser and collecting 
 
 Presents each Round on a web page served by `visual-companion`'s grill mode. Terms (Grill session, Round, Submission, Agent notes) are defined in `GLOSSARY.md`.
 
+## Resume or start
+
+First check for an unfinished Grill session (does not start a server):
+
+```bash
+~/.claude/skills/visual-companion/scripts/start-server.sh --grill --grill-status --project-dir "$PWD"
+```
+
+If `unfinished` is not null, ask the user whether to resume it (`rounds` and `answered` say how far it got) or start fresh. Fresh means adding `--new` to the launch below. To resume, read every `round-NNN.json`, `answers-NNN.json` and `decisions.md` in that directory to rebuild context, then continue from the open frontier: an unanswered Round is still open (re-wait for its Submission), otherwise post the next Round.
+
 ## Start or reuse the server
 
 ```bash
 ~/.claude/skills/visual-companion/scripts/launch-persistent.sh --grill --project-dir "$PWD" --open
 ```
 
-The launch is synchronous and prints JSON. Keep `url`, `session_dir`, `round_pattern` and `answers_pattern`.
+The launch is synchronous and prints JSON. Keep `url`, `session_dir`, `decision_log`, `round_pattern` and `answers_pattern`.
 
-- Re-running reuses the project's port, key, forward and newest session directory, so an open tab keeps working.
+- Re-running reuses the project's port, key, forward and newest unfinished session directory, so an open tab keeps working.
 - Give the user the full `url` including `?key=`. Requests without the key are rejected.
 - In a Cloud Agent workspace the URL is a public HTTPS forward; also run `cloudagent open-url "<url>" --title "Grill"`. Elsewhere it is plain `localhost`.
 - Never launch with `run_in_background`; the script keeps the server alive in tmux.
@@ -82,6 +92,10 @@ The page shows the status live (waiting for you, agent working, Round ready) by 
 
 `accept` means the user took your recommendation. `skip` means revisit it in a later Round. Fold the answers into the grilling, then post the next Round.
 
+## Decision log
+
+After folding in each Submission, append the decisions it settled to `decision_log` (`decisions.md`) as Markdown bullets. The page shows it, and it is what you reload on resume.
+
 ## Finish
 
-When the frontier is empty, say so in the terminal and summarise the decisions. Stop the server only if asked: `~/.claude/skills/visual-companion/scripts/stop-companion.sh <session_dir>`. The forward stays so the URL is stable.
+When the frontier is empty, write `finished.json` (e.g. `{"finished_at": "<ISO time>"}`) into `session_dir` so the session is no longer offered for resume, say so in the terminal and summarise the decisions. Stop the server only if asked: `~/.claude/skills/visual-companion/scripts/stop-companion.sh <session_dir>`. The forward stays so the URL is stable.

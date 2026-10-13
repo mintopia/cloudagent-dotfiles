@@ -76,7 +76,8 @@ function snapshot() {
     .filter(r => r.round);
   const latest = rounds[rounds.length - 1];
   const status = !latest ? 'waiting-for-agent' : latest.answers ? 'agent-working' : 'round-ready';
-  return { status, rounds };
+  const finished = readJson(path.join(SESSION_DIR, 'finished.json'));
+  return { status: finished ? 'finished' : status, rounds, decisions: readFile(path.join(SESSION_DIR, 'decisions.md')) };
 }
 
 const ANSWER_KINDS = ['accept', 'option', 'skip', 'text'];
@@ -203,7 +204,9 @@ pickPort(port => {
     port,
     host: HOST,
     url: `http://${URL_HOST}:${port}/?key=${TOKEN}`,
+    resumed: process.env.BRAINSTORM_RESUMED === 'true',
     session_dir: SESSION_DIR,
+    decision_log: path.join(SESSION_DIR, 'decisions.md'),
     state_dir: STATE_DIR,
     round_pattern: path.join(SESSION_DIR, 'round-NNN.json'),
     answers_pattern: path.join(SESSION_DIR, 'answers-NNN.json')
@@ -259,14 +262,14 @@ table{border-collapse:collapse}th,td{border:1px solid var(--border);padding:.25r
 <link rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
 </head><body>
 <h1>Grill</h1><div class="status" id="status">Loading…</div>
-<div id="history"></div><div id="current"></div>
+<div id="history"></div><details id="decisions" hidden><summary>Decision log</summary><div id="decisions-body"></div></details><div id="current"></div>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 <script>
 var md = function (s) { return window.marked ? window.marked.parse(String(s || '')) : '<pre>' + String(s || '').replace(/</g, '&lt;') + '</pre>'; };
 var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
-var shown = null, picks = {}, lastHistory = null;
+var shown = null, picks = {}, lastHistory = null, lastDecisions = null;
 var dark = window.matchMedia('(prefers-color-scheme: dark)');
 function initMermaid() { if (window.mermaid) window.mermaid.initialize({ startOnLoad: false, theme: dark.matches ? 'dark' : 'default', securityLevel: 'strict' }); }
 function enhance(root) {
@@ -288,7 +291,7 @@ function renderMermaid(root) {
 }
 initMermaid();
 dark.addEventListener('change', function () { initMermaid(); renderMermaid(document); });
-var LABEL = { 'waiting-for-agent': 'Agent working: no Round yet…', 'agent-working': 'Answered. Agent working…', 'round-ready': 'Waiting for you: Round ready' };
+var LABEL = { 'waiting-for-agent': 'Agent working: no Round yet…', 'agent-working': 'Answered. Agent working…', 'round-ready': 'Waiting for you: Round ready', 'finished': 'Session finished' };
 
 function questionHtml(q) {
   var h = '<div class="q" data-q="' + esc(q.id) + '"><h3>' + esc(q.title) + '</h3><div>' + md(q.body) + '</div>';
@@ -358,15 +361,28 @@ function poll() {
     document.getElementById('status').textContent = LABEL[s.status] || s.status;
     var last = s.rounds[s.rounds.length - 1];
     var hist = s.rounds.filter(function (r) { return r.answers; }).map(function (r) {
+      var qs = (r.round.questions || []).map(function (q) {
+        var a = (r.answers.answers || []).filter(function (x) { return x.id === q.id; })[0] || {};
+        var shownAnswer = a.kind === 'option' ? 'Picked ' + a.option : a.kind === 'accept' ? 'Accepted recommendation' : a.kind === 'skip' ? 'Skipped' : 'Text answer';
+        return '<div class="q"><h3>' + esc(q.title) + '</h3><div>' + md(q.body) + '</div><p><strong>' + esc(shownAnswer) + '</strong>' + (a.text ? ': ' + esc(a.text) : '') + '</p></div>';
+      }).join('');
+      var c = r.answers.comment ? '<p><em>' + esc(r.answers.comment) + '</em></p>' : '';
       return '<details class="past"><summary>Round ' + r.round.round + (r.round.title ? ': ' + esc(r.round.title) : '') + ' (answered)</summary>' +
-        (r.round.notes ? '<div class="notes">' + md(r.round.notes) + '</div>' : '') +
-        '<pre>' + esc(JSON.stringify(r.answers.answers, null, 2)) + '</pre></details>';
+        (r.round.notes ? '<div class="notes">' + md(r.round.notes) + '</div>' : '') + qs + c + '</details>';
     }).join('');
     if (hist !== lastHistory) {
       lastHistory = hist;
       var hEl = document.getElementById('history');
       hEl.innerHTML = hist;
       enhance(hEl);
+    }
+    var dec = (s.decisions || '').replace(/^# Decision log\\s*/, '');
+    if (dec !== lastDecisions) {
+      lastDecisions = dec;
+      document.getElementById('decisions').hidden = !dec;
+      var dEl = document.getElementById('decisions-body');
+      dEl.innerHTML = md(dec);
+      enhance(dEl);
     }
     if (last && !last.answers && shown !== last.round.round) { shown = last.round.round; renderCurrent(last.round); }
     if (last && last.answers) { document.getElementById('current').innerHTML = ''; shown = null; }
