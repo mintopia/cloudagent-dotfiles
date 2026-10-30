@@ -595,6 +595,7 @@ echo
 skills_joined=$(printf ', %s' "${INSTALLED_SKILLS[@]}"); skills_joined=${skills_joined:2}
 echo "Installed:"
 echo "  Plugins:     context-mode, frontend-design"
+echo "  Mods:        cache-tax"
 echo "  MCP servers: jcodemunch"
 echo "  npm:         @openai/codex"
 echo "  Skills:      $skills_joined"
