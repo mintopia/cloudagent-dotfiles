@@ -42,11 +42,18 @@ feels right?" is visual — browser.
 ## Starting a Session
 
 Launch **after** the user agrees to the visual companion. Always use
-`launch-persistent.sh` — it runs the Cloud Agent-aware wrapper inside a detached
-tmux session so the server survives the turn, and prints the same start JSON.
-The server self-terminates the moment its owner process exits, so launching it
-any other way — the harness's background mode especially — kills it within
-seconds ("owner process exited"). Do not run it with run_in_background.
+`launch-persistent.sh` — it keeps the server alive past the turn and prints the
+start JSON. In a Cloud Agent workspace it parks the server in a detached tmux
+session; anywhere else (Claude Code on a laptop) it skips tmux and ties the
+server's lifetime to the Claude Code process. Launching it any other way — the
+harness's background mode especially — kills it within seconds ("owner process
+exited"). Do not run it with run_in_background.
+
+**Outside Cloud Agent, run the launch with the Bash sandbox disabled**
+(`dangerouslyDisableSandbox: true`). Claude Code's sandbox blocks listening
+ports and opening the browser, and kills every process it started when the
+command ends, so a sandboxed launch never survives. Only the launch needs it;
+writing screens and reading events work sandboxed.
 
 ```bash
 # --project-dir persists mockups and enables same-port restart.
@@ -196,7 +203,7 @@ Stops the server; the project's http-forward stays so an open tab reconnects aft
 
 ## Reference
 
-- `scripts/launch-persistent.sh` — tmux wrapper that keeps the server's owner process alive (use this to launch)
+- `scripts/launch-persistent.sh` — keeps the server alive past the turn: tmux on Cloud Agent, Claude Code-owned elsewhere (use this to launch)
 - `scripts/start-companion.sh` / `scripts/stop-companion.sh` — Cloud Agent-aware wrappers
 - `scripts/grill-server.cjs` — grill mode (`--grill` on the launchers), used by the `grill-ui` skill; serves Rounds, records Submissions, session under `<project>/.grill/`
 - `scripts/start-server.sh` / `scripts/stop-server.sh` — upstream server (unmodified)

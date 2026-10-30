@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Launch the visual companion under a persistent tmux session.
+# Launch the visual companion so it outlives the launching Bash call.
+#
+# Cloud Agent: runs under a detached tmux session (below). Anywhere else (e.g.
+# Claude Code on a laptop): launches directly with the watchdog tied to the
+# Claude Code process, since tmux there gets killed with the sandbox.
 #
 # Why: server.cjs watches BRAINSTORM_OWNER_PID (the process that owns the launch)
 # and self-terminates the moment that owner exits — the "owner process exited"
@@ -28,10 +32,40 @@ SESSION="${VC_TMUX_SESSION:-${PREFIX}-${SLUG:-project}}"
 TMP="${TMPDIR:-/tmp}"
 OUT="$(mktemp "$TMP/visual-companion-launch.XXXXXX.json")"
 
-if ! command -v tmux >/dev/null 2>&1; then
-  # No tmux: fall back to a direct launch. The owner-PID watchdog may still reap
-  # the server when the launching turn ends; the idle timeout is the backstop.
-  exec "$SCRIPT_DIR/start-companion.sh" "$@"
+is_cloudagent() {
+  [[ -n "${CLOUDAGENT_API_URL:-}" ]] && command -v cloudagent >/dev/null 2>&1
+}
+
+# Nearest ancestor that is the Claude Code CLI (npm or native install).
+find_claude_pid() {
+  local pid=$PPID args
+  for _ in $(seq 1 20); do
+    [[ -z "$pid" || "$pid" -le 1 ]] && return 1
+    args="$(ps -o args= -p "$pid" 2>/dev/null || true)"
+    if [[ "$args" =~ (^|/)claude([[:space:]]|$)|claude-code|/claude/versions/ ]]; then
+      printf '%s' "$pid"; return 0
+    fi
+    pid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"
+  done
+  return 1
+}
+
+# Local (laptop) path: no tmux. A user's own tmux server or Claude Code's
+# sandbox both kill a tmux-launched server, so tie the watchdog to the Claude
+# Code process instead; if it can't be found, an empty owner disables the
+# watchdog and the idle timeout / stop-companion.sh are the only shutdown.
+if ! is_cloudagent || ! command -v tmux >/dev/null 2>&1; then
+  BRAINSTORM_OWNER_PID_OVERRIDE="$(find_claude_pid || true)"
+  export BRAINSTORM_OWNER_PID_OVERRIDE
+  RESULT="$("$SCRIPT_DIR/start-companion.sh" "$@" 2>&1 || true)"
+  if grep -q '"type":"server-started"' <<<"$RESULT"; then
+    grep -m1 '"type":"server-started"' <<<"$RESULT"
+  else
+    ERR="$(tr -d '\r"' <<<"$RESULT" | grep -m1 . || true)"
+    echo "{\"error\": \"visual companion launch failed: ${ERR:-no output}. If Claude Code's sandbox is on, rerun this command with the sandbox disabled (it blocks listening ports and reaps processes when the command ends).\"}"
+    exit 1
+  fi
+  exit 0
 fi
 
 # A previous run leaves the session parked on `sleep infinity`; replace it.

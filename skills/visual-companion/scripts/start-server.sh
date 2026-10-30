@@ -231,7 +231,8 @@ cd "$SCRIPT_DIR" || exit 1
 # launch-persistent.sh) points the watchdog at a process that outlives this
 # script, so the server survives the launching turn instead of dying with the
 # ephemeral harness shell ("owner process exited").
-if [[ -n "${BRAINSTORM_OWNER_PID_OVERRIDE:-}" ]]; then
+# Set-but-empty disables the watchdog.
+if [[ -n "${BRAINSTORM_OWNER_PID_OVERRIDE+x}" ]]; then
   OWNER_PID="$BRAINSTORM_OWNER_PID_OVERRIDE"
 else
   # Resolve the harness PID (grandparent of this script).

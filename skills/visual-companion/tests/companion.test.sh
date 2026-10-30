@@ -79,5 +79,13 @@ OUTP="$(env -u CLOUDAGENT_API_URL PATH="$W/bin:$PATH" STORE="$STORE" bash "$SCRI
 ok "outside Cloud Agent: no cloudagent calls" '[ "$(wc -l < "$STORE.log")" -eq "$before" ]'
 ok "outside Cloud Agent: localhost url"       '[[ "$(jq -r .url <<<"$OUTP")" == http://localhost:* ]]'
 
+# launch-persistent.sh outside Cloud Agent: no tmux, server outlives the launch.
+mkdir -p "$W/laptop"
+OUTL="$(env -u CLOUDAGENT_API_URL bash "$SCRIPTS/launch-persistent.sh" --project-dir "$W/laptop")"
+ok "laptop launch prints server-started" '[ "$(jq -r .type <<<"$OUTL")" = server-started ]'
+ok "laptop launch does not use tmux"     '! tmux has-session -t visual-companion-laptop 2>/dev/null'
+sleep 1
+ok "laptop server outlives the launch"   'kill -0 "$(cat "$(jq -r .state_dir <<<"$OUTL")/server.pid")"'
+
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]

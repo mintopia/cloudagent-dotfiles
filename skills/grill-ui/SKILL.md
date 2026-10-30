@@ -28,7 +28,8 @@ The launch is synchronous and prints JSON. Keep `url`, `session_dir`, `decision_
 - Re-running reuses the project's port, key, forward and newest unfinished session directory, so an open tab keeps working.
 - Give the user the full `url` including `?key=`. Requests without the key are rejected.
 - In a Cloud Agent workspace the URL is a public HTTPS forward; also run `cloudagent open-url "<url>" --title "Grill"`. Elsewhere it is plain `localhost`.
-- Never launch with `run_in_background`; the script keeps the server alive in tmux.
+- Never launch with `run_in_background`; the script keeps the server alive itself.
+- Outside Cloud Agent, run the launch with the Bash sandbox disabled (`dangerouslyDisableSandbox: true`). The sandbox blocks the listening port and kills the server when the command ends.
 
 ## Post a Round
 
